@@ -2,9 +2,17 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
-import { BookOpen, Info, Layers, Loader2, LocateFixed } from "lucide-react";
+import {
+  BookOpen,
+  Info,
+  Layers,
+  Loader2,
+  LocateFixed,
+  WifiOff,
+} from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -21,7 +29,7 @@ import { Disclaimer } from "@/components/panels/Disclaimer";
 
 import { OVERLAYS } from "@/lib/map/layers";
 import { PROPERTY_LAYER_ENABLED } from "@/lib/config";
-import { useHydrated, usePersistentState } from "@/lib/hooks";
+import { useHydrated, useOnline, usePersistentState } from "@/lib/hooks";
 import type {
   DataStatus,
   LngLat,
@@ -118,6 +126,7 @@ export function AppShell() {
   };
 
   const anchor = located ?? view?.center ?? null;
+  const online = useOnline();
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-muted">
@@ -149,6 +158,16 @@ export function AppShell() {
             <Info className="size-5" />
           </ControlButton>
         </div>
+        {!online && (
+          <div className="pointer-events-auto mx-auto">
+            <Badge
+              variant="warning"
+              className="gap-1 shadow-md ring-1 ring-border"
+            >
+              <WifiOff className="size-3" /> Offline – visar sparad data
+            </Badge>
+          </div>
+        )}
         <div className="pointer-events-auto mx-auto w-full max-w-md">
           <FireBanBanner county={county} onChangeCounty={setCounty} />
         </div>

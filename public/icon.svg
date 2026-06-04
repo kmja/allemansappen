@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Friluftslivshjälp">
+  <rect width="512" height="512" fill="#15803d"/>
+  <!-- Ground -->
+  <rect x="96" y="372" width="320" height="14" rx="7" fill="#ffffff" opacity="0.9"/>
+  <!-- Tent -->
+  <path d="M256 150 L398 372 L114 372 Z" fill="#ffffff"/>
+  <!-- Entrance -->
+  <path d="M256 244 L312 372 L200 372 Z" fill="#15803d"/>
+  <!-- Pole tip -->
+  <circle cx="256" cy="150" r="12" fill="#ffffff"/>
+</svg>

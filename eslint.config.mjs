@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Service worker (browser SW globals) is hand-authored, not linted here.
+    "public/**",
   ]),
 ]);
 

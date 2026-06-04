@@ -49,6 +49,28 @@ npm run build && npm run start
 No API keys are required for the default experience. Copy `.env.example` to
 `.env.local` only if you want to enable optional layers (see below).
 
+### Tests
+
+```bash
+npm test          # vitest run — unit tests for the pure data logic
+npm run test:watch
+```
+
+The suite (`src/lib/__tests__/`) covers the parts that can't be exercised
+against live APIs in a sandbox: Overpass query building, the OSM→GeoJSON
+conversion (ways, multipolygon relations, ring-closing, tag passthrough), the
+SMHI forecast parser, the fire-ban resolver, and the geo/county helpers.
+
+### Install as an app / offline
+
+The app is a PWA: it ships a web manifest + service worker (`public/sw.js`) and
+can be installed to a phone home screen. Offline behaviour is intentionally
+conservative — navigations and API calls are **network-first** (online always
+wins), while **map tiles you've already viewed are cached** so a previously
+seen area still renders without signal. An "Offline – visar sparad data" badge
+appears when connectivity drops. (A deliberate "download this area" prefetch is
+still on the roadmap.)
+
 ## Data sources
 
 | Layer | Source | Needs a key? |
@@ -135,8 +157,9 @@ src/
 
 **Offline-aware by design:** weather and fire-ban responses are cached in
 `localStorage` with a visible "checked at" timestamp, so a stale offline value is
-never mistaken for a live one. Cached map tiles for a chosen area are a planned
-v1.5 addition — the data layer already assumes connectivity can drop.
+never mistaken for a live one. A service worker additionally caches viewed map
+tiles and the app shell (see `public/sw.js`). A deliberate "download this area"
+tile prefetch is the remaining offline piece.
 
 ## Explicitly NOT in scope (by design)
 
@@ -146,7 +169,11 @@ v1.5 addition — the data layer already assumes connectivity can drop.
 
 ## Roadmap
 
-- Offline tile caching around a chosen area.
+- "Download this area" tile prefetch for guaranteed offline coverage (the
+  service worker already caches viewed tiles opportunistically).
 - A real eldningsförbud feed (the `FireBanResult` shape already supports
   `ban` / `no-ban` so the UI won't change when a source is wired in).
 - Reserve detail via Naturvårdsverket "Skyddad natur" instead of OSM tags.
+- Auto-detect the county for the fire-ban link-out (kept manual for now to
+  avoid asserting a wrong county — the trust-killer the whole app guards
+  against).

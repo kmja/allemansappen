@@ -1,0 +1,26 @@
+{
+  "name": "Kan jag tälta här? – Friluftslivshjälp",
+  "short_name": "Friluftshjälp",
+  "description": "Karta och allemansrätts-principer som hjälper dig bedöma om du kan tälta. Ger inget facit – du avgör själv.",
+  "lang": "sv",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#15803d",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
