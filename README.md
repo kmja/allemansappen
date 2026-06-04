@@ -49,17 +49,26 @@ npm run build && npm run start
 No API keys are required for the default experience. Copy `.env.example` to
 `.env.local` only if you want to enable optional layers (see below).
 
-### Tests
+### Tests & CI
 
 ```bash
-npm test          # vitest run — unit tests for the pure data logic
+npm test          # vitest run
 npm run test:watch
 ```
 
-The suite (`src/lib/__tests__/`) covers the parts that can't be exercised
-against live APIs in a sandbox: Overpass query building, the OSM→GeoJSON
-conversion (ways, multipolygon relations, ring-closing, tag passthrough), the
-SMHI forecast parser, the fire-ban resolver, and the geo/county helpers.
+Two layers of tests, run in CI (lint + test + build) on every push and PR via
+`.github/workflows/ci.yml`:
+
+- **Pure data logic** (`src/lib/__tests__/`) — Overpass query building, the
+  OSM→GeoJSON conversion (ways, multipolygon relations, ring-closing, tag
+  passthrough), the SMHI forecast parser, the fire-ban resolver, the geo/county
+  helpers, and the untrusted-URL sanitiser.
+- **Component behaviour** (`src/components/**/__tests__/`) — the honest-framing
+  UI: the fire-ban banner never claims "no ban", weather falls back to cached
+  data when offline, the property toggle stays disabled until configured, and
+  the principles panel links out to official sources.
+
+These cover the parts that can't be exercised against live APIs in a sandbox.
 
 ### Install as an app / offline
 
@@ -158,8 +167,15 @@ src/
 **Offline-aware by design:** weather and fire-ban responses are cached in
 `localStorage` with a visible "checked at" timestamp, so a stale offline value is
 never mistaken for a live one. A service worker additionally caches viewed map
-tiles and the app shell (see `public/sw.js`). A deliberate "download this area"
-tile prefetch is the remaining offline piece.
+tiles and the app shell, with bounded caches so a long session can't grow them
+without limit (see `public/sw.js`). A deliberate "download this area" tile
+prefetch is the remaining offline piece.
+
+**Untrusted data is treated as untrusted:** OpenStreetMap tags are
+world-editable, so any value rendered into a reserve popup is HTML-escaped, and a
+link target (a reserve's `website`) is dropped unless it parses as an absolute
+http(s) URL — a `javascript:`/`data:` scheme never reaches an `href`
+(`src/lib/url.ts`).
 
 ## Explicitly NOT in scope (by design)
 
