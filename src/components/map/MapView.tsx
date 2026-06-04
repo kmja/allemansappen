@@ -45,10 +45,24 @@ interface MapViewProps {
   onStatusChange?: (statuses: Record<OverpassKind, DataStatus>) => void;
   /** Receives a function the parent can call to trigger GPS centring. */
   registerLocate?: (trigger: () => void) => void;
+  onLocateError?: (message: string) => void;
 }
 
 const ALL_KINDS: OverpassKind[] = ["buildings", "landuse", "reserves"];
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
+
+function geolocationErrorMessage(code?: number): string {
+  switch (code) {
+    case 1:
+      return "Platsåtkomst nekades – tillåt platsdelning för att centrera kartan.";
+    case 2:
+      return "Din position kunde inte hämtas just nu.";
+    case 3:
+      return "Det tog för lång tid att hämta din position.";
+    default:
+      return "Kunde inte hämta din position.";
+  }
+}
 
 function escapeHtml(value: string): string {
   return value
@@ -65,6 +79,7 @@ export default function MapView({
   onLocate,
   onStatusChange,
   registerLocate,
+  onLocateError,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -77,6 +92,7 @@ export default function MapView({
     onLocate,
     onStatusChange,
     registerLocate,
+    onLocateError,
   });
   useEffect(() => {
     propsRef.current = {
@@ -86,6 +102,7 @@ export default function MapView({
       onLocate,
       onStatusChange,
       registerLocate,
+      onLocateError,
     };
   });
 
@@ -144,11 +161,15 @@ export default function MapView({
         lat: pos.coords.latitude,
       });
     });
+    geolocate.on("error", (e) => {
+      const err = e as Partial<GeolocationPositionError>;
+      propsRef.current.onLocateError?.(geolocationErrorMessage(err?.code));
+    });
     propsRef.current.registerLocate?.(() => {
       try {
         geolocate.trigger();
       } catch {
-        /* geolocation unsupported / blocked */
+        propsRef.current.onLocateError?.(geolocationErrorMessage());
       }
     });
 

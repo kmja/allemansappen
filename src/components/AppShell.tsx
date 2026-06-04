@@ -8,7 +8,9 @@ import {
   Layers,
   Loader2,
   LocateFixed,
+  MapPinOff,
   WifiOff,
+  X,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -103,6 +105,12 @@ export function AppShell() {
   });
   const [view, setView] = useState<ViewState | null>(null);
   const [located, setLocated] = useState<LngLat | null>(null);
+  const [locateError, setLocateError] = useState<string | null>(null);
+
+  const handleLocate = useCallback((coords: LngLat) => {
+    setLocated(coords);
+    setLocateError(null);
+  }, []);
 
   const [layersOpen, setLayersOpen] = useState(false);
   const [principlesOpen, setPrinciplesOpen] = useState(false);
@@ -134,9 +142,10 @@ export function AppShell() {
         enabled={enabled}
         propertyConfigured={propertyConfigured}
         onViewChange={setView}
-        onLocate={setLocated}
+        onLocate={handleLocate}
         onStatusChange={setStatuses}
         registerLocate={registerLocate}
+        onLocateError={setLocateError}
       />
 
       {/* Top overlay: controls + fire-ban banner */}
@@ -166,6 +175,20 @@ export function AppShell() {
             >
               <WifiOff className="size-3" /> Offline – visar sparad data
             </Badge>
+          </div>
+        )}
+        {locateError && (
+          <div className="pointer-events-auto mx-auto flex max-w-md items-center gap-2 rounded-md bg-card/95 px-3 py-1.5 text-xs shadow-md ring-1 ring-border backdrop-blur">
+            <MapPinOff className="size-4 shrink-0 text-[var(--warning)]" />
+            <span className="flex-1">{locateError}</span>
+            <button
+              type="button"
+              aria-label="Stäng"
+              onClick={() => setLocateError(null)}
+              className="opacity-70 transition-opacity hover:opacity-100"
+            >
+              <X className="size-3.5" />
+            </button>
           </div>
         )}
         <div className="pointer-events-auto mx-auto w-full max-w-md">
