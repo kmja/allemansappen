@@ -14,6 +14,11 @@ const VERSION = "v1";
 const STATIC_CACHE = `fch-static-${VERSION}`;
 const TILE_CACHE = "fch-tiles";
 const TILE_CAP = 600;
+// API GETs (overpass/weather/fire-ban) are keyed by a continuously-varying
+// bbox, so they live in their own bounded cache rather than growing the app
+// shell cache without limit.
+const API_CACHE = "fch-api";
+const API_CAP = 80;
 const PRECACHE = ["/", "/manifest.webmanifest", "/icon.svg"];
 
 self.addEventListener("install", (event) => {
@@ -73,14 +78,19 @@ async function cacheFirst(request, cacheName, cap) {
   return res;
 }
 
-async function networkFirst(request, cacheName, fallbackUrl) {
+async function networkFirst(request, cacheName, { fallbackUrl, cap } = {}) {
   const cache = await caches.open(cacheName);
   try {
     const res = await fetch(request);
-    try {
-      await cache.put(request, res.clone());
-    } catch {
-      /* ignore */
+    // Only cache successful responses, so an offline replay never serves a
+    // cached 4xx/5xx back as if it were real data.
+    if (res.ok) {
+      try {
+        await cache.put(request, res.clone());
+        if (cap) trimCache(cacheName, cap);
+      } catch {
+        /* ignore */
+      }
     }
     return res;
   } catch (err) {
@@ -116,13 +126,13 @@ self.addEventListener("fetch", (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === "navigate") {
-    event.respondWith(networkFirst(request, STATIC_CACHE, "/"));
+    event.respondWith(networkFirst(request, STATIC_CACHE, { fallbackUrl: "/" }));
     return;
   }
 
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      networkFirst(request, STATIC_CACHE).catch(
+      networkFirst(request, API_CACHE, { cap: API_CAP }).catch(
         () =>
           new Response(JSON.stringify({ error: "offline" }), {
             status: 503,

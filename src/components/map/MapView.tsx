@@ -16,6 +16,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { getBasemap } from "@/lib/map/basemap";
 import { OVERLAY_COLORS } from "@/lib/map/layers";
 import { getJson } from "@/lib/data/client";
+import { safeHttpUrl } from "@/lib/url";
 import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
@@ -394,11 +395,10 @@ export default function MapView({
       const props = e.features?.[0]?.properties ?? {};
       const name =
         typeof props.name === "string" ? props.name : "Naturreservat";
+      // OSM tags are world-editable, so validate the scheme before trusting
+      // the value as a link target — blocks javascript:/data: URLs here.
       const website =
-        (typeof props.website === "string" && props.website) ||
-        (typeof props["contact:website"] === "string" &&
-          (props["contact:website"] as string)) ||
-        null;
+        safeHttpUrl(props.website) ?? safeHttpUrl(props["contact:website"]);
       const officialLink = website
         ? `<a href="${escapeHtml(website)}" target="_blank" rel="noreferrer" style="color:var(--primary);display:block;margin-bottom:2px">Officiell sida ↗</a>`
         : "";
