@@ -1,0 +1,103 @@
+"use client";
+
+import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
+import { OVERLAYS, type OverlayConfig } from "@/lib/map/layers";
+import type { DataStatus, OverlayId, OverpassKind } from "@/lib/types";
+
+function hintFor(
+  overlay: OverlayConfig,
+  enabled: boolean,
+  statuses: Record<OverpassKind, DataStatus>,
+  propertyConfigured: boolean,
+): string | null {
+  if (overlay.source === "lantmateriet" && !propertyConfigured) {
+    return "Kräver konfigurerad Lantmäteriet-åtkomst (se README).";
+  }
+  if (!enabled) return null;
+  if (overlay.id === "hemfridszon") {
+    return "Beräknas från byggnadslagret – endast vägledande, ingen juridisk gräns.";
+  }
+  if (overlay.source === "overpass" && overlay.overpassKind) {
+    switch (statuses[overlay.overpassKind]) {
+      case "loading":
+        return "Hämtar data…";
+      case "error":
+        return "Kunde inte hämta (offline?).";
+      case "zoom":
+        return "Zooma in för att ladda.";
+      case "empty":
+        return "Inget hittat i kartvyn.";
+      default:
+        return null;
+    }
+  }
+  return null;
+}
+
+export function LayerToggles({
+  enabled,
+  onToggle,
+  statuses,
+  propertyConfigured,
+}: {
+  enabled: Record<OverlayId, boolean>;
+  onToggle: (id: OverlayId) => void;
+  statuses: Record<OverpassKind, DataStatus>;
+  propertyConfigured: boolean;
+}) {
+  return (
+    <div className="px-4">
+      <p className="mb-3 text-xs text-muted-foreground">
+        Lager hämtas från OpenStreetMap när du är online. Allt är underlag för
+        din egen bedömning – inga gränser är facit.
+      </p>
+      <div className="divide-y">
+        {OVERLAYS.map((overlay) => {
+          const disabled =
+            overlay.source === "lantmateriet" && !propertyConfigured;
+          const isOn = enabled[overlay.id] && !disabled;
+          const hint = hintFor(
+            overlay,
+            enabled[overlay.id],
+            statuses,
+            propertyConfigured,
+          );
+          return (
+            <div key={overlay.id} className="flex items-start gap-3 py-3">
+              <span
+                aria-hidden
+                className="mt-1 size-3 shrink-0 rounded-sm border"
+                style={{ backgroundColor: overlay.color }}
+              />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">{overlay.label}</span>
+                  <Switch
+                    checked={isOn}
+                    disabled={disabled}
+                    onCheckedChange={() => onToggle(overlay.id)}
+                    aria-label={overlay.label}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {overlay.description}
+                </p>
+                {hint && (
+                  <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                    {hint}
+                  </p>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Separator className="my-3" />
+      <p className="text-[11px] leading-relaxed text-muted-foreground">
+        Byggnadslagret hjälper dig att hålla avstånd till bostäder
+        (hemfridszon). Brukad mark visar åkrar och ängar att undvika.
+      </p>
+    </div>
+  );
+}

@@ -1,0 +1,35 @@
+/**
+ * Client-safe configuration. Only values that are safe to ship to the browser
+ * live here (i.e. NEXT_PUBLIC_* and constants). Server-only secrets such as
+ * Lantmäteriet credentials are read directly inside the relevant route
+ * handlers and never imported into client code.
+ */
+
+/** Optional custom MapLibre basemap style URL (vector or raster). */
+export const BASEMAP_STYLE_URL =
+  process.env.NEXT_PUBLIC_BASEMAP_STYLE_URL?.trim() || null;
+
+/**
+ * Whether to surface the property-boundary (Lantmäteriet) toggle. Off by
+ * default because it needs configured server-side credentials; flip the
+ * NEXT_PUBLIC_PROPERTY_LAYER_ENABLED env to "true" once /api/lm-tiles works.
+ */
+export const PROPERTY_LAYER_ENABLED =
+  process.env.NEXT_PUBLIC_PROPERTY_LAYER_ENABLED === "true";
+
+/** Default map view: roughly the geographic centre of Sweden. */
+export const DEFAULT_CENTER: [number, number] = [15.5, 62.5];
+export const DEFAULT_ZOOM = 4.2;
+
+/** When a located user is centred, zoom in to this level. */
+export const LOCATED_ZOOM = 15;
+
+/**
+ * Minimum zoom at which we query Overpass. Below this the bbox covers too much
+ * ground and the query would be huge / slow, so overlays pause and prompt the
+ * user to zoom in.
+ */
+export const OVERPASS_MIN_ZOOM = 13;
+
+/** Indicative hemfridszon buffer radius (metres). Legally fuzzy — see UI copy. */
+export const HEMFRIDSZON_RADIUS_M = 65;
