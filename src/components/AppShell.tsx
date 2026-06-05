@@ -27,7 +27,7 @@ import { PrinciplesPanel } from "@/components/panels/PrinciplesPanel";
 import { FireBanBanner } from "@/components/panels/FireBanBanner";
 import { WeatherCard } from "@/components/panels/WeatherCard";
 import {
-  AssessmentSummary,
+  AssessmentCard,
   PositionAssessmentPanel,
 } from "@/components/panels/PositionAssessment";
 import { FirstRunExplainer } from "@/components/panels/FirstRunExplainer";
@@ -202,22 +202,21 @@ export function AppShell() {
         <div className="pointer-events-auto mx-auto w-full max-w-md">
           <FireBanBanner county={county} onChangeCounty={setCounty} />
         </div>
-        <div className="mx-auto">
-          <AssessmentSummary
-            assessment={assessment}
-            onOpen={() => setAssessOpen(true)}
-          />
+      </div>
+
+      {/* Bottom: prominent assessment, weather, persistent honest framing */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-2 p-3">
+        <AssessmentCard
+          assessment={assessment}
+          onOpenDetails={() => setAssessOpen(true)}
+          onUseMyLocation={() => locateRef.current?.()}
+        />
+        <div className="pointer-events-auto w-full max-w-md">
+          <WeatherCard anchor={anchor} />
         </div>
-      </div>
-
-      {/* Bottom-left: weather */}
-      <div className="absolute bottom-9 left-3 z-10 max-w-[70%]">
-        <WeatherCard anchor={anchor} />
-      </div>
-
-      {/* Persistent honest framing */}
-      <div className="absolute inset-x-0 bottom-2 z-10 px-3">
-        <Disclaimer />
+        <div className="w-full max-w-md">
+          <Disclaimer />
+        </div>
       </div>
 
       <Sheet open={assessOpen} onOpenChange={setAssessOpen}>

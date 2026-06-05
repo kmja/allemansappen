@@ -1,6 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
 import {
   AlertOctagon,
   CheckCircle2,
@@ -152,106 +151,132 @@ function tally(rules: RuleAssessment[]) {
   return { clear, judgment, avoid };
 }
 
-function Count({
-  Icon,
-  cls,
-  n,
-}: {
-  Icon: IconType;
-  cls: string;
-  n: number;
-}) {
+function CompactRow({ rule }: { rule: RuleAssessment }) {
+  const v = VERDICT_META[rule.verdict];
+  const RuleIcon = RULE_ICON[rule.id];
   return (
-    <span className={cn("inline-flex items-center gap-0.5", cls)}>
-      <Icon className="size-3.5" aria-hidden />
-      {n}
-    </span>
+    <div className="flex items-center gap-2">
+      <RuleIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="flex-1 truncate text-xs font-medium">{rule.label}</span>
+      <span
+        className={cn(
+          "inline-flex shrink-0 items-center gap-1 text-xs font-medium",
+          v.cls,
+        )}
+      >
+        <v.Icon
+          className={cn("size-3.5", v.spin && "animate-spin")}
+          aria-hidden
+        />
+        {rule.headline}
+      </span>
+    </div>
+  );
+}
+
+/** Bold at-a-glance verdict line — "whether you're in the clear". */
+function VerdictHeadline({ assessment }: { assessment: PositionAssessment }) {
+  let Icon: IconType = Scale;
+  let cls = "text-warning";
+  let text = "Inga tydliga hinder – du avgör";
+  let spin = false;
+  if (!assessment.positionInView) {
+    Icon = MapPin;
+    cls = "text-muted-foreground";
+    text =
+      assessment.origin === "picked"
+        ? "Punkten är utanför kartvyn"
+        : "Centrera kartan på din plats";
+  } else if (assessment.rules.some((r) => r.verdict === "checking")) {
+    Icon = Loader2;
+    cls = "text-muted-foreground";
+    text = "Hämtar underlag…";
+    spin = true;
+  } else if (tally(assessment.rules).avoid > 0) {
+    Icon = AlertOctagon;
+    cls = "text-destructive";
+    text = "Något att undvika här";
+  }
+  return (
+    <div className={cn("flex items-center gap-2 text-sm font-semibold", cls)}>
+      <Icon
+        className={cn("size-4 shrink-0", spin && "animate-spin")}
+        aria-hidden
+      />
+      {text}
+    </div>
   );
 }
 
 /**
- * Always-visible chip summarising the position assessment. Doubles as the
- * "are overlays still loading?" indicator. Tapping opens the full checklist.
+ * Prominent, always-visible assessment card. Surfaces the at-a-glance verdict
+ * plus every rule's status for the selected/detected point, so the user never
+ * has to open anything to see whether they're in the clear.
  */
-export function AssessmentSummary({
+export function AssessmentCard({
   assessment,
-  onOpen,
+  onOpenDetails,
+  onUseMyLocation,
 }: {
   assessment: PositionAssessment | null;
-  onOpen: () => void;
+  onOpenDetails: () => void;
+  onUseMyLocation?: () => void;
 }) {
-  const base =
-    "pointer-events-auto inline-flex max-w-[92vw] items-center gap-2 rounded-full bg-card/95 px-3 py-1.5 text-xs shadow-md ring-1 ring-border backdrop-blur transition-colors hover:bg-card";
+  const card =
+    "pointer-events-auto w-full max-w-md rounded-xl bg-card/95 p-3 shadow-lg ring-1 ring-border backdrop-blur";
 
-  let content: ReactNode;
   if (!assessment?.located) {
-    content = (
-      <>
-        <MapPin className="size-3.5 text-muted-foreground" aria-hidden />
-        <span className="font-medium">Bedöm din plats</span>
-      </>
-    );
-  } else if (!assessment.positionInView) {
-    content = (
-      <>
-        <MapPin className="size-3.5 text-muted-foreground" aria-hidden />
-        <span>
-          {assessment.origin === "picked"
-            ? "Punkten är utanför kartvyn"
-            : "Centrera kartan på din plats"}
-        </span>
-      </>
-    );
-  } else if (assessment.rules.some((r) => r.verdict === "checking")) {
-    content = (
-      <>
-        <Loader2
-          className="size-3.5 animate-spin text-muted-foreground"
-          aria-hidden
-        />
-        <span>Hämtar underlag…</span>
-      </>
-    );
-  } else {
-    const OriginIcon = assessment.origin === "picked" ? MapPin : LocateFixed;
-    const hz = assessment.rules.find((r) => r.id === "hemfridszon");
-    const showHouse =
-      hz && (hz.verdict === "avoid" || hz.verdict === "judgment");
-    const houseText = hz
-      ? hz.headline.includes("till byggnad")
-        ? hz.headline.split(" till")[0]
-        : hz.headline
-      : "";
-    const t = tally(assessment.rules);
-    content = (
-      <>
-        <OriginIcon
-          className="size-3.5 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
-        {showHouse && (
-          <span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">
-            <House className="size-3.5 shrink-0" aria-hidden />
-            {houseText}
-          </span>
-        )}
-        <span className="flex shrink-0 items-center gap-2">
-          <Count Icon={CheckCircle2} cls="text-primary" n={t.clear} />
-          <Count Icon={Scale} cls="text-warning" n={t.judgment} />
-          <Count Icon={AlertOctagon} cls="text-destructive" n={t.avoid} />
-        </span>
-      </>
+    return (
+      <div className={card}>
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <MapPin className="size-4 shrink-0" aria-hidden />
+          Tryck på platsknappen – eller tryck och håll på kartan – för att bedöma
+          en plats.
+        </div>
+      </div>
     );
   }
 
+  const picked = assessment.origin === "picked";
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className={base}
-      aria-label="Visa bedömning av din plats"
-    >
-      {content}
-    </button>
+    <div className={card}>
+      <div className="flex items-start justify-between gap-2">
+        <VerdictHeadline assessment={assessment} />
+        <button
+          type="button"
+          onClick={onOpenDetails}
+          className="shrink-0 text-xs font-medium text-primary hover:underline"
+        >
+          Detaljer
+        </button>
+      </div>
+
+      <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        {picked ? (
+          <MapPin className="size-3 shrink-0" aria-hidden />
+        ) : (
+          <LocateFixed className="size-3 shrink-0" aria-hidden />
+        )}
+        <span>{picked ? "Vald punkt på kartan" : "Din plats"}</span>
+        {picked && onUseMyLocation && (
+          <>
+            <span aria-hidden>·</span>
+            <button
+              type="button"
+              onClick={onUseMyLocation}
+              className="font-medium text-primary hover:underline"
+            >
+              Använd min plats
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="mt-2 grid gap-2">
+        {assessment.rules.map((rule) => (
+          <CompactRow key={rule.id} rule={rule} />
+        ))}
+      </div>
+    </div>
   );
 }

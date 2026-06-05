@@ -206,7 +206,10 @@ export default function MapView({
 
     const geolocate = new GeolocateControl({
       positionOptions: { enableHighAccuracy: true },
-      trackUserLocation: true,
+      // One-shot, not continuous: a picked point must survive, and the map
+      // shouldn't snap back to GPS every few seconds. The locate button (and
+      // "Använd min plats") re-triggers a fresh fix on demand.
+      trackUserLocation: false,
       showUserLocation: true,
     });
     map.addControl(geolocate, "top-left");

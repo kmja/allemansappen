@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import {
-  AssessmentSummary,
+  AssessmentCard,
   PositionAssessmentPanel,
 } from "@/components/panels/PositionAssessment";
 import type { PositionAssessment } from "@/lib/types";
@@ -94,32 +94,52 @@ describe("PositionAssessmentPanel", () => {
   });
 });
 
-describe("AssessmentSummary", () => {
+describe("AssessmentCard", () => {
   it("invites locating when there is no fix", () => {
-    render(<AssessmentSummary assessment={empty()} onOpen={() => {}} />);
-    expect(screen.getByText("Bedöm din plats")).toBeInTheDocument();
+    render(<AssessmentCard assessment={empty()} onOpenDetails={() => {}} />);
+    expect(screen.getByText(/Tryck på platsknappen/i)).toBeInTheDocument();
   });
 
-  it("surfaces the nearest-building distance as an always-on readout", () => {
-    render(<AssessmentSummary assessment={located} onOpen={() => {}} />);
-    expect(screen.getByText("~45 m")).toBeInTheDocument();
+  it("shows a prominent verdict and every rule status without opening anything", () => {
+    render(<AssessmentCard assessment={located} onOpenDetails={() => {}} />);
+    // An "avoid" rule is present -> the at-a-glance verdict warns.
+    expect(screen.getByText("Något att undvika här")).toBeInTheDocument();
+    expect(screen.getByText("Naturreservat")).toBeInTheDocument();
+    expect(screen.getByText("~45 m till byggnad")).toBeInTheDocument();
+  });
+
+  it("reads as your-judgment when nothing must be avoided", () => {
+    const clearish: PositionAssessment = {
+      ...located,
+      rules: located.rules.map((r) =>
+        r.verdict === "avoid"
+          ? { ...r, verdict: "clear", headline: "Inte brukad mark" }
+          : r,
+      ),
+    };
+    render(<AssessmentCard assessment={clearish} onOpenDetails={() => {}} />);
+    expect(screen.getByText(/Inga tydliga hinder/i)).toBeInTheDocument();
   });
 
   it("shows a loading state while overlays are still fetching", () => {
     const checking: PositionAssessment = {
       ...located,
-      rules: [{ ...located.rules[0], verdict: "checking", headline: "Kontrollerar…" }],
+      rules: located.rules.map((r) => ({
+        ...r,
+        verdict: "checking",
+        headline: "Kontrollerar…",
+      })),
     };
-    render(<AssessmentSummary assessment={checking} onOpen={() => {}} />);
+    render(<AssessmentCard assessment={checking} onOpenDetails={() => {}} />);
     expect(screen.getByText(/Hämtar underlag/i)).toBeInTheDocument();
   });
 
-  it("opens the detail sheet when tapped", async () => {
-    const onOpen = vi.fn();
-    render(<AssessmentSummary assessment={located} onOpen={onOpen} />);
-    await userEvent.click(
-      screen.getByRole("button", { name: /Visa bedömning/i }),
+  it("opens the detail sheet via the Detaljer button", async () => {
+    const onOpenDetails = vi.fn();
+    render(
+      <AssessmentCard assessment={located} onOpenDetails={onOpenDetails} />,
     );
-    expect(onOpen).toHaveBeenCalledOnce();
+    await userEvent.click(screen.getByRole("button", { name: "Detaljer" }));
+    expect(onOpenDetails).toHaveBeenCalledOnce();
   });
 });
