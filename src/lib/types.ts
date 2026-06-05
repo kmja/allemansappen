@@ -103,9 +103,11 @@ export interface RuleAssessment {
 }
 
 export interface PositionAssessment {
-  /** Whether we have a GPS fix to assess at all. */
+  /** Whether we have a point to assess at all (a GPS fix or a tapped point). */
   located: boolean;
-  /** Whether that fix is within the currently-loaded map view (else data is stale). */
+  /** Whether the assessed point is the GPS fix or a point tapped on the map. */
+  origin: "gps" | "picked";
+  /** Whether the assessed point is within the loaded map view (else data is stale). */
   positionInView: boolean;
   rules: RuleAssessment[];
 }

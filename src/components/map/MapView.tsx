@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import {
   Map as MlMap,
+  Marker,
   NavigationControl,
   ScaleControl,
   GeolocateControl,
@@ -130,6 +131,8 @@ export default function MapView({
   });
   const debounceRef = useRef<number | undefined>(undefined);
   const locatedRef = useRef<LngLat | null>(null);
+  const pickedRef = useRef<LngLat | null>(null);
+  const markerRef = useRef<Marker | null>(null);
 
   // Imperative hooks so prop-driven effects can call into the map closure.
   const applyRef = useRef<() => void>(() => {});
@@ -159,9 +162,11 @@ export default function MapView({
     const emitAssessment = () => {
       const cb = propsRef.current.onAssessment;
       if (!cb) return;
-      const point = locatedRef.current;
+      const picked = pickedRef.current;
+      const point = picked ?? locatedRef.current;
+      const origin = picked ? "picked" : "gps";
       if (!point) {
-        cb({ located: false, positionInView: false, rules: [] });
+        cb({ located: false, origin: "gps", positionInView: false, rules: [] });
         return;
       }
       const b = map.getBounds();
@@ -176,6 +181,7 @@ export default function MapView({
       });
       cb({
         located: true,
+        origin,
         positionInView,
         rules: assessPosition(point, {
           reserves: layer("reserves"),
@@ -203,6 +209,10 @@ export default function MapView({
         lat: pos.coords.latitude,
       };
       locatedRef.current = coords;
+      // A real GPS fix supersedes any tapped point.
+      pickedRef.current = null;
+      markerRef.current?.remove();
+      markerRef.current = null;
       propsRef.current.onLocate?.(coords);
       emitAssessment();
     });
@@ -474,6 +484,21 @@ export default function MapView({
         debounceRef.current = window.setTimeout(refreshOverlays, 400);
       });
 
+      // Tap anywhere to assess that exact spot (supersedes GPS until you
+      // press the locate button again).
+      map.on("click", (e) => {
+        const picked = { lng: e.lngLat.lng, lat: e.lngLat.lat };
+        pickedRef.current = picked;
+        if (markerRef.current) {
+          markerRef.current.setLngLat([picked.lng, picked.lat]);
+        } else {
+          markerRef.current = new Marker({ color: "#1f2937" })
+            .setLngLat([picked.lng, picked.lat])
+            .addTo(map);
+        }
+        emitAssessment();
+      });
+
       map.on("click", "reserves-fill", onReserveClick);
       for (const layer of ["reserves-fill"]) {
         map.on("mouseenter", layer, () => {
@@ -497,6 +522,8 @@ export default function MapView({
     return () => {
       window.clearTimeout(debounceRef.current);
       for (const kind of ALL_KINDS) abortControllers[kind]?.abort();
+      markerRef.current?.remove();
+      markerRef.current = null;
       map.remove();
       mapRef.current = null;
     };

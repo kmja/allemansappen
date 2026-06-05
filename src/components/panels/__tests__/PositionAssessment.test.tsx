@@ -11,6 +11,7 @@ import type { PositionAssessment } from "@/lib/types";
 
 const located: PositionAssessment = {
   located: true,
+  origin: "gps",
   positionInView: true,
   rules: [
     {
@@ -44,6 +45,13 @@ const located: PositionAssessment = {
   ],
 };
 
+const empty = (): PositionAssessment => ({
+  located: false,
+  origin: "gps",
+  positionInView: false,
+  rules: [],
+});
+
 describe("PositionAssessmentPanel", () => {
   it("frames green honestly and never as a verdict", () => {
     render(<PositionAssessmentPanel assessment={located} />);
@@ -65,31 +73,41 @@ describe("PositionAssessmentPanel", () => {
     expect(screen.getByText("På brukad mark")).toBeInTheDocument();
   });
 
-  it("prompts to locate when there is no position yet", () => {
+  it("prompts to locate or tap when there is no position yet", () => {
+    render(<PositionAssessmentPanel assessment={empty()} />);
+    expect(screen.getByText(/Tryck på platsknappen/i)).toBeInTheDocument();
+  });
+
+  it("labels a tapped point and offers a way back to GPS", async () => {
+    const onUseMyLocation = vi.fn();
     render(
       <PositionAssessmentPanel
-        assessment={{ located: false, positionInView: false, rules: [] }}
+        assessment={{ ...located, origin: "picked" }}
+        onUseMyLocation={onUseMyLocation}
       />,
     );
-    expect(screen.getByText(/Tryck på platsknappen/i)).toBeInTheDocument();
+    expect(screen.getByText("Vald punkt på kartan")).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Använd min plats" }),
+    );
+    expect(onUseMyLocation).toHaveBeenCalledOnce();
   });
 });
 
 describe("AssessmentSummary", () => {
   it("invites locating when there is no fix", () => {
-    render(
-      <AssessmentSummary
-        assessment={{ located: false, positionInView: false, rules: [] }}
-        onOpen={() => {}}
-      />,
-    );
+    render(<AssessmentSummary assessment={empty()} onOpen={() => {}} />);
     expect(screen.getByText("Bedöm din plats")).toBeInTheDocument();
+  });
+
+  it("surfaces the nearest-building distance as an always-on readout", () => {
+    render(<AssessmentSummary assessment={located} onOpen={() => {}} />);
+    expect(screen.getByText("~45 m")).toBeInTheDocument();
   });
 
   it("shows a loading state while overlays are still fetching", () => {
     const checking: PositionAssessment = {
-      located: true,
-      positionInView: true,
+      ...located,
       rules: [{ ...located.rules[0], verdict: "checking", headline: "Kontrollerar…" }],
     };
     render(<AssessmentSummary assessment={checking} onOpen={() => {}} />);

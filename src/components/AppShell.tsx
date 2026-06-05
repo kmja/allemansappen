@@ -231,7 +231,13 @@ export function AppShell() {
               Bedömning för din plats – underlag, inte ett facit.
             </SheetDescription>
           </SheetHeader>
-          <PositionAssessmentPanel assessment={assessment} />
+          <PositionAssessmentPanel
+            assessment={assessment}
+            onUseMyLocation={() => {
+              locateRef.current?.();
+              setAssessOpen(false);
+            }}
+          />
         </SheetContent>
       </Sheet>
 

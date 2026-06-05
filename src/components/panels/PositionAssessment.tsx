@@ -8,6 +8,7 @@ import {
   Flame,
   House,
   Loader2,
+  LocateFixed,
   MapPin,
   Scale,
   TreePine,
@@ -77,28 +78,57 @@ function Row({ rule }: { rule: RuleAssessment }) {
 /** Body of the "Kan jag tälta här?" sheet (header supplied by the caller). */
 export function PositionAssessmentPanel({
   assessment,
+  onUseMyLocation,
 }: {
   assessment: PositionAssessment | null;
+  onUseMyLocation?: () => void;
 }) {
+  const picked = assessment?.located && assessment.origin === "picked";
   return (
     <div className="px-4 pb-4">
       <p className="mb-3 text-xs text-muted-foreground">
-        Appen väger ihop underlagen runt din plats. Den ger ingen dom – grönt
+        Appen väger ihop underlagen runt en plats. Den ger ingen dom – grönt
         betyder bara att appen inte hittar något hinder, inte att det garanterat
-        är okej att tälta. Du avgör.
+        är okej att tälta. Du avgör. Tryck var som helst på kartan för att bedöma
+        en annan punkt.
       </p>
 
       {!assessment?.located ? (
         <div className="flex items-center gap-2 rounded-md bg-muted/60 px-3 py-3 text-xs text-muted-foreground">
           <MapPin className="size-4 shrink-0" aria-hidden />
-          Tryck på platsknappen för att bedöma din plats.
+          Tryck på platsknappen – eller direkt på kartan – för att bedöma en
+          plats.
         </div>
       ) : (
-        <div className="divide-y">
-          {assessment.rules.map((rule) => (
-            <Row key={rule.id} rule={rule} />
-          ))}
-        </div>
+        <>
+          <div className="mb-1 flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+              {picked ? (
+                <MapPin className="size-3.5 text-muted-foreground" aria-hidden />
+              ) : (
+                <LocateFixed
+                  className="size-3.5 text-muted-foreground"
+                  aria-hidden
+                />
+              )}
+              {picked ? "Vald punkt på kartan" : "Din plats"}
+            </span>
+            {picked && onUseMyLocation && (
+              <button
+                type="button"
+                onClick={onUseMyLocation}
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                Använd min plats
+              </button>
+            )}
+          </div>
+          <div className="divide-y">
+            {assessment.rules.map((rule) => (
+              <Row key={rule.id} rule={rule} />
+            ))}
+          </div>
+        </>
       )}
 
       <Separator className="my-3" />
@@ -151,7 +181,7 @@ export function AssessmentSummary({
   onOpen: () => void;
 }) {
   const base =
-    "pointer-events-auto inline-flex items-center gap-2 rounded-full bg-card/95 px-3 py-1.5 text-xs shadow-md ring-1 ring-border backdrop-blur transition-colors hover:bg-card";
+    "pointer-events-auto inline-flex max-w-[92vw] items-center gap-2 rounded-full bg-card/95 px-3 py-1.5 text-xs shadow-md ring-1 ring-border backdrop-blur transition-colors hover:bg-card";
 
   let content: ReactNode;
   if (!assessment?.located) {
@@ -165,22 +195,47 @@ export function AssessmentSummary({
     content = (
       <>
         <MapPin className="size-3.5 text-muted-foreground" aria-hidden />
-        <span>Centrera kartan på din plats</span>
+        <span>
+          {assessment.origin === "picked"
+            ? "Punkten är utanför kartvyn"
+            : "Centrera kartan på din plats"}
+        </span>
       </>
     );
   } else if (assessment.rules.some((r) => r.verdict === "checking")) {
     content = (
       <>
-        <Loader2 className="size-3.5 animate-spin text-muted-foreground" aria-hidden />
-        <span>Hämtar underlag för din plats…</span>
+        <Loader2
+          className="size-3.5 animate-spin text-muted-foreground"
+          aria-hidden
+        />
+        <span>Hämtar underlag…</span>
       </>
     );
   } else {
+    const OriginIcon = assessment.origin === "picked" ? MapPin : LocateFixed;
+    const hz = assessment.rules.find((r) => r.id === "hemfridszon");
+    const showHouse =
+      hz && (hz.verdict === "avoid" || hz.verdict === "judgment");
+    const houseText = hz
+      ? hz.headline.includes("till byggnad")
+        ? hz.headline.split(" till")[0]
+        : hz.headline
+      : "";
     const t = tally(assessment.rules);
     content = (
       <>
-        <span className="font-medium">Kan jag tälta här?</span>
-        <span className="flex items-center gap-2">
+        <OriginIcon
+          className="size-3.5 shrink-0 text-muted-foreground"
+          aria-hidden
+        />
+        {showHouse && (
+          <span className="inline-flex shrink-0 items-center gap-1 text-muted-foreground">
+            <House className="size-3.5 shrink-0" aria-hidden />
+            {houseText}
+          </span>
+        )}
+        <span className="flex shrink-0 items-center gap-2">
           <Count Icon={CheckCircle2} cls="text-primary" n={t.clear} />
           <Count Icon={Scale} cls="text-warning" n={t.judgment} />
           <Count Icon={AlertOctagon} cls="text-destructive" n={t.avoid} />
