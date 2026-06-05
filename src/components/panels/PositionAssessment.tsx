@@ -89,15 +89,15 @@ export function PositionAssessmentPanel({
       <p className="mb-3 text-xs text-muted-foreground">
         Appen väger ihop underlagen runt en plats. Den ger ingen dom – grönt
         betyder bara att appen inte hittar något hinder, inte att det garanterat
-        är okej att tälta. Du avgör. Tryck var som helst på kartan för att bedöma
-        en annan punkt.
+        är okej att tälta. Du avgör. Tryck och håll på kartan för att bedöma en
+        annan punkt.
       </p>
 
       {!assessment?.located ? (
         <div className="flex items-center gap-2 rounded-md bg-muted/60 px-3 py-3 text-xs text-muted-foreground">
           <MapPin className="size-4 shrink-0" aria-hidden />
-          Tryck på platsknappen – eller direkt på kartan – för att bedöma en
-          plats.
+          Tryck på platsknappen – eller tryck och håll på kartan – för att
+          bedöma en plats.
         </div>
       ) : (
         <>

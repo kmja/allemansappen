@@ -56,6 +56,13 @@ interface MapViewProps {
 const ALL_KINDS: OverpassKind[] = ["buildings", "landuse", "reserves"];
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 
+/** Minimal shape shared by MapLibre's mouse/touch events for press detection. */
+type PressEvent = {
+  point: { x: number; y: number };
+  lngLat: { lng: number; lat: number };
+  points?: unknown[];
+};
+
 function geolocationErrorMessage(code?: number): string {
   switch (code) {
     case 1:
@@ -133,6 +140,7 @@ export default function MapView({
   const locatedRef = useRef<LngLat | null>(null);
   const pickedRef = useRef<LngLat | null>(null);
   const markerRef = useRef<Marker | null>(null);
+  const pressTimerRef = useRef<number | undefined>(undefined);
 
   // Imperative hooks so prop-driven effects can call into the map closure.
   const applyRef = useRef<() => void>(() => {});
@@ -484,20 +492,70 @@ export default function MapView({
         debounceRef.current = window.setTimeout(refreshOverlays, 400);
       });
 
-      // Tap anywhere to assess that exact spot (supersedes GPS until you
-      // press the locate button again).
-      map.on("click", (e) => {
-        const picked = { lng: e.lngLat.lng, lat: e.lngLat.lat };
-        pickedRef.current = picked;
+      // Long-press (touch) / press-and-hold (mouse) anywhere to assess that
+      // exact spot — avoids casual taps dropping a marker. A picked point
+      // supersedes GPS until you press the locate button again.
+      const setPickedPoint = (p: LngLat) => {
+        pickedRef.current = p;
         if (markerRef.current) {
-          markerRef.current.setLngLat([picked.lng, picked.lat]);
+          markerRef.current.setLngLat([p.lng, p.lat]);
         } else {
           markerRef.current = new Marker({ color: "#1f2937" })
-            .setLngLat([picked.lng, picked.lat])
+            .setLngLat([p.lng, p.lat])
             .addTo(map);
         }
         emitAssessment();
-      });
+      };
+
+      const LONG_PRESS_MS = 500;
+      const MOVE_TOLERANCE = 12;
+      let pressStart: { x: number; y: number; lngLat: LngLat } | null = null;
+
+      const cancelPress = () => {
+        window.clearTimeout(pressTimerRef.current);
+        pressTimerRef.current = undefined;
+        pressStart = null;
+      };
+
+      const beginPress = (e: PressEvent) => {
+        if (e.points && e.points.length > 1) {
+          cancelPress(); // pinch / multi-touch is never a long-press
+          return;
+        }
+        pressStart = {
+          x: e.point.x,
+          y: e.point.y,
+          lngLat: { lng: e.lngLat.lng, lat: e.lngLat.lat },
+        };
+        window.clearTimeout(pressTimerRef.current);
+        pressTimerRef.current = window.setTimeout(() => {
+          if (pressStart) {
+            setPickedPoint(pressStart.lngLat);
+            pressStart = null;
+          }
+        }, LONG_PRESS_MS);
+      };
+
+      const cancelPressOnMove = (e: PressEvent) => {
+        if (!pressStart) return;
+        if (
+          Math.hypot(e.point.x - pressStart.x, e.point.y - pressStart.y) >
+          MOVE_TOLERANCE
+        ) {
+          cancelPress(); // it's a pan, not a hold
+        }
+      };
+
+      map.on("mousedown", beginPress);
+      map.on("touchstart", beginPress);
+      map.on("mousemove", cancelPressOnMove);
+      map.on("touchmove", cancelPressOnMove);
+      map.on("mouseup", cancelPress);
+      map.on("touchend", cancelPress);
+      map.on("touchcancel", cancelPress);
+      map.on("dragstart", cancelPress);
+      map.on("movestart", cancelPress);
+      map.on("zoomstart", cancelPress);
 
       map.on("click", "reserves-fill", onReserveClick);
       for (const layer of ["reserves-fill"]) {
@@ -521,6 +579,7 @@ export default function MapView({
 
     return () => {
       window.clearTimeout(debounceRef.current);
+      window.clearTimeout(pressTimerRef.current);
       for (const kind of ALL_KINDS) abortControllers[kind]?.abort();
       markerRef.current?.remove();
       markerRef.current = null;
