@@ -17,6 +17,7 @@ import { getBasemap } from "@/lib/map/basemap";
 import { OVERLAY_COLORS } from "@/lib/map/layers";
 import { getJson } from "@/lib/data/client";
 import { safeHttpUrl } from "@/lib/url";
+import { assessPosition } from "@/lib/assess";
 import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
@@ -30,6 +31,7 @@ import type {
   OverlayId,
   OverpassKind,
   OverpassResponse,
+  PositionAssessment,
 } from "@/lib/types";
 
 export interface ViewState {
@@ -47,6 +49,7 @@ interface MapViewProps {
   /** Receives a function the parent can call to trigger GPS centring. */
   registerLocate?: (trigger: () => void) => void;
   onLocateError?: (message: string) => void;
+  onAssessment?: (assessment: PositionAssessment) => void;
 }
 
 const ALL_KINDS: OverpassKind[] = ["buildings", "landuse", "reserves"];
@@ -81,6 +84,7 @@ export default function MapView({
   onStatusChange,
   registerLocate,
   onLocateError,
+  onAssessment,
 }: MapViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MlMap | null>(null);
@@ -94,6 +98,7 @@ export default function MapView({
     onStatusChange,
     registerLocate,
     onLocateError,
+    onAssessment,
   });
   useEffect(() => {
     propsRef.current = {
@@ -104,6 +109,7 @@ export default function MapView({
       onStatusChange,
       registerLocate,
       onLocateError,
+      onAssessment,
     };
   });
 
@@ -123,6 +129,7 @@ export default function MapView({
     reserves: "idle",
   });
   const debounceRef = useRef<number | undefined>(undefined);
+  const locatedRef = useRef<LngLat | null>(null);
 
   // Imperative hooks so prop-driven effects can call into the map closure.
   const applyRef = useRef<() => void>(() => {});
@@ -146,6 +153,40 @@ export default function MapView({
     });
     mapRef.current = map;
 
+    // Re-evaluate the per-rule assessment at the user's GPS point. Emits an
+    // honest "off-screen / loading" state when the point isn't covered by the
+    // currently-loaded data, so a stale green is never shown.
+    const emitAssessment = () => {
+      const cb = propsRef.current.onAssessment;
+      if (!cb) return;
+      const point = locatedRef.current;
+      if (!point) {
+        cb({ located: false, positionInView: false, rules: [] });
+        return;
+      }
+      const b = map.getBounds();
+      const positionInView =
+        point.lng >= b.getWest() &&
+        point.lng <= b.getEast() &&
+        point.lat >= b.getSouth() &&
+        point.lat <= b.getNorth();
+      const layer = (kind: OverpassKind) => ({
+        status: statusRef.current[kind],
+        features: dataRef.current[kind]?.features ?? [],
+      });
+      cb({
+        located: true,
+        positionInView,
+        rules: assessPosition(point, {
+          reserves: layer("reserves"),
+          cultivated: layer("landuse"),
+          buildings: layer("buildings"),
+          positionInView,
+          hemfridszonRadiusM: HEMFRIDSZON_RADIUS_M,
+        }),
+      });
+    };
+
     map.addControl(new NavigationControl({ showCompass: true }), "top-left");
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-right");
 
@@ -157,10 +198,13 @@ export default function MapView({
     map.addControl(geolocate, "top-left");
     geolocate.on("geolocate", (e) => {
       const pos = e as GeolocationPosition;
-      propsRef.current.onLocate?.({
+      const coords = {
         lng: pos.coords.longitude,
         lat: pos.coords.latitude,
-      });
+      };
+      locatedRef.current = coords;
+      propsRef.current.onLocate?.(coords);
+      emitAssessment();
     });
     geolocate.on("error", (e) => {
       const err = e as Partial<GeolocationPositionError>;
@@ -177,6 +221,7 @@ export default function MapView({
     const setStatus = (kind: OverpassKind, status: DataStatus) => {
       statusRef.current[kind] = status;
       propsRef.current.onStatusChange?.({ ...statusRef.current });
+      emitAssessment();
     };
 
     const getBBox = (): BBox => {
@@ -424,6 +469,7 @@ export default function MapView({
 
       map.on("moveend", () => {
         emitView();
+        emitAssessment();
         window.clearTimeout(debounceRef.current);
         debounceRef.current = window.setTimeout(refreshOverlays, 400);
       });

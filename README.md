@@ -14,6 +14,12 @@ you make an informed judgment.
 
 ## What it shows
 
+- **Per-position checklist ("Kan jag tälta här?")** — for your GPS point, each
+  consideration (naturreservat, brukad mark, hemfridszon, eldningsförbud) is
+  marked **i grönt / undvik / din bedömning**, with live loading states while the
+  data fetches. Honest by design: green only ever means "no obstacle found in the
+  loaded data", never a legal verdict; hemfridszon and fire are always flagged as
+  your judgment.
 - **Topographic basemap** (OpenStreetMap by default; swappable for Lantmäteriet
   topo or a vector style).
 - **Buildings** — the reasoning aid for *hemfridszon* (the private zone around a

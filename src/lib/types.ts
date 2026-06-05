@@ -76,3 +76,36 @@ export interface WeatherResult {
   source: string;
   sourceUrl: string;
 }
+
+/**
+ * Per-rule verdict for the user's position. Deliberately NOT a yes/no camping
+ * answer: `clear` only means the app found no obstacle (qualified by the data),
+ * `judgment` marks the inherently-human calls, and `checking`/`unknown` keep the
+ * app honest about what it can't (yet) determine.
+ */
+export type RuleVerdict =
+  | "clear" // app finds no obstacle here (based on loaded data)
+  | "avoid" // a concrete obstacle: in a reserve / on cultivated land / on a building
+  | "judgment" // inherently the user's call (hemfridszon distance, fire ban)
+  | "checking" // data still loading
+  | "unknown"; // can't assess: zoomed out, layer off, offline, or off-screen
+
+export type RuleId = "reserve" | "cultivated" | "hemfridszon" | "fire";
+
+export interface RuleAssessment {
+  id: RuleId;
+  label: string;
+  verdict: RuleVerdict;
+  /** Short status line, e.g. "~45 m till byggnad". */
+  headline: string;
+  /** Honest one-liner explaining the verdict. */
+  detail: string;
+}
+
+export interface PositionAssessment {
+  /** Whether we have a GPS fix to assess at all. */
+  located: boolean;
+  /** Whether that fix is within the currently-loaded map view (else data is stale). */
+  positionInView: boolean;
+  rules: RuleAssessment[];
+}

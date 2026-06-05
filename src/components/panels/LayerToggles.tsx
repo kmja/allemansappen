@@ -1,5 +1,7 @@
 "use client";
 
+import { CheckCircle2, CircleAlert, CircleDashed, Loader2 } from "lucide-react";
+
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { OVERLAYS, type OverlayConfig } from "@/lib/map/layers";
@@ -33,6 +35,35 @@ function hintFor(
     }
   }
   return null;
+}
+
+function StatusIcon({ status }: { status: DataStatus }) {
+  switch (status) {
+    case "loading":
+      return (
+        <Loader2
+          className="size-3.5 animate-spin text-muted-foreground"
+          aria-label="Hämtar"
+        />
+      );
+    case "ready":
+      return (
+        <CheckCircle2 className="size-3.5 text-primary" aria-label="Laddat" />
+      );
+    case "error":
+      return (
+        <CircleAlert className="size-3.5 text-destructive" aria-label="Fel" />
+      );
+    case "empty":
+      return (
+        <CircleDashed
+          className="size-3.5 text-muted-foreground"
+          aria-label="Inget hittat"
+        />
+      );
+    default:
+      return null;
+  }
 }
 
 export function LayerToggles({
@@ -73,12 +104,19 @@ export function LayerToggles({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-sm font-medium">{overlay.label}</span>
-                  <Switch
-                    checked={isOn}
-                    disabled={disabled}
-                    onCheckedChange={() => onToggle(overlay.id)}
-                    aria-label={overlay.label}
-                  />
+                  <div className="flex items-center gap-2">
+                    {isOn &&
+                      overlay.source === "overpass" &&
+                      overlay.overpassKind && (
+                        <StatusIcon status={statuses[overlay.overpassKind]} />
+                      )}
+                    <Switch
+                      checked={isOn}
+                      disabled={disabled}
+                      onCheckedChange={() => onToggle(overlay.id)}
+                      aria-label={overlay.label}
+                    />
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {overlay.description}

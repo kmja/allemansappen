@@ -26,6 +26,10 @@ import { LayerToggles } from "@/components/panels/LayerToggles";
 import { PrinciplesPanel } from "@/components/panels/PrinciplesPanel";
 import { FireBanBanner } from "@/components/panels/FireBanBanner";
 import { WeatherCard } from "@/components/panels/WeatherCard";
+import {
+  AssessmentSummary,
+  PositionAssessmentPanel,
+} from "@/components/panels/PositionAssessment";
 import { FirstRunExplainer } from "@/components/panels/FirstRunExplainer";
 import { Disclaimer } from "@/components/panels/Disclaimer";
 
@@ -37,6 +41,7 @@ import type {
   LngLat,
   OverlayId,
   OverpassKind,
+  PositionAssessment,
 } from "@/lib/types";
 import type { ViewState } from "@/components/map/MapView";
 
@@ -106,6 +111,7 @@ export function AppShell() {
   const [view, setView] = useState<ViewState | null>(null);
   const [located, setLocated] = useState<LngLat | null>(null);
   const [locateError, setLocateError] = useState<string | null>(null);
+  const [assessment, setAssessment] = useState<PositionAssessment | null>(null);
 
   const handleLocate = useCallback((coords: LngLat) => {
     setLocated(coords);
@@ -114,6 +120,7 @@ export function AppShell() {
 
   const [layersOpen, setLayersOpen] = useState(false);
   const [principlesOpen, setPrinciplesOpen] = useState(false);
+  const [assessOpen, setAssessOpen] = useState(false);
   // null = "not decided" → open on first run once hydrated; boolean = user choice.
   const [introOpen, setIntroOpen] = useState<boolean | null>(null);
   const introVisible = introOpen ?? (hydrated && !seenIntro);
@@ -146,6 +153,7 @@ export function AppShell() {
         onStatusChange={setStatuses}
         registerLocate={registerLocate}
         onLocateError={setLocateError}
+        onAssessment={setAssessment}
       />
 
       {/* Top overlay: controls + fire-ban banner */}
@@ -194,6 +202,12 @@ export function AppShell() {
         <div className="pointer-events-auto mx-auto w-full max-w-md">
           <FireBanBanner county={county} onChangeCounty={setCounty} />
         </div>
+        <div className="mx-auto">
+          <AssessmentSummary
+            assessment={assessment}
+            onOpen={() => setAssessOpen(true)}
+          />
+        </div>
       </div>
 
       {/* Bottom-left: weather */}
@@ -205,6 +219,21 @@ export function AppShell() {
       <div className="absolute inset-x-0 bottom-2 z-10 px-3">
         <Disclaimer />
       </div>
+
+      <Sheet open={assessOpen} onOpenChange={setAssessOpen}>
+        <SheetContent
+          side="right"
+          className="w-full gap-0 overflow-y-auto p-0 sm:max-w-sm"
+        >
+          <SheetHeader>
+            <SheetTitle>Kan jag tälta här?</SheetTitle>
+            <SheetDescription>
+              Bedömning för din plats – underlag, inte ett facit.
+            </SheetDescription>
+          </SheetHeader>
+          <PositionAssessmentPanel assessment={assessment} />
+        </SheetContent>
+      </Sheet>
 
       <Sheet open={layersOpen} onOpenChange={setLayersOpen}>
         <SheetContent
