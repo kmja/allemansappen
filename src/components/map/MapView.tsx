@@ -144,6 +144,7 @@ export default function MapView({
   const userMarkerRef = useRef<Marker | null>(null);
   const watchIdRef = useRef<number | null>(null);
   const firstFixRef = useRef(true);
+  const userInteractedRef = useRef(false);
   const pressTimerRef = useRef<number | undefined>(undefined);
 
   // Imperative hooks so prop-driven effects can call into the map closure.
@@ -204,6 +205,7 @@ export default function MapView({
       cb({
         located: true,
         origin,
+        point,
         positionInView,
         rules: assessPosition(point, {
           reserves: layer("reserves"),
@@ -238,13 +240,15 @@ export default function MapView({
       ensureUserDot(coords);
       // Manual mode: keep the live dot, but freeze the assessment on the pin.
       if (pickedRef.current) return;
-      if (firstFixRef.current) {
-        firstFixRef.current = false;
+      // Centre on the first fix only, and never once the user has panned — so
+      // browsing the map away from your location is never yanked back.
+      if (firstFixRef.current && !userInteractedRef.current) {
         map.easeTo({
           center: [coords.lng, coords.lat],
           zoom: Math.max(map.getZoom(), LOCATED_ZOOM),
         });
       }
+      firstFixRef.current = false;
       propsRef.current.onLocate?.(coords);
       emitAssessment();
     };
@@ -271,6 +275,7 @@ export default function MapView({
       pickedRef.current = null;
       markerRef.current?.remove();
       markerRef.current = null;
+      userInteractedRef.current = false; // re-enable centring on the next fix
       startWatch();
       const coords = locatedRef.current;
       if (coords) {
@@ -286,6 +291,11 @@ export default function MapView({
     };
 
     propsRef.current.registerLocate?.(goToMyLocation);
+
+    // A manual pan disables GPS auto-centring until the next explicit locate.
+    map.on("dragstart", () => {
+      userInteractedRef.current = true;
+    });
 
     const setStatus = (kind: OverpassKind, status: DataStatus) => {
       statusRef.current[kind] = status;
@@ -377,6 +387,8 @@ export default function MapView({
       const bbox = getBBox();
       for (const kind of ALL_KINDS) {
         if (!kinds.includes(kind)) {
+          dataRef.current[kind] = null;
+          setSourceData(kind, EMPTY_FC);
           setStatus(kind, "idle");
           continue;
         }
@@ -594,6 +606,9 @@ export default function MapView({
 
       map.on("moveend", () => {
         emitView();
+        // Manual mode (a pin is placed) is a frozen snapshot: panning must not
+        // refetch overlays or re-evaluate, so the ruling stays put.
+        if (pickedRef.current) return;
         emitAssessment();
         window.clearTimeout(debounceRef.current);
         debounceRef.current = window.setTimeout(refreshOverlays, 400);
@@ -612,6 +627,8 @@ export default function MapView({
             .addTo(map);
         }
         emitAssessment();
+        // Load overlays for the pinned area once; subsequent pans stay frozen.
+        refreshOverlays();
       };
 
       const LONG_PRESS_MS = 500;

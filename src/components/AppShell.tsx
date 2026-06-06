@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import {
   BookOpen,
@@ -25,16 +25,16 @@ import {
 import { LayerToggles } from "@/components/panels/LayerToggles";
 import { PrinciplesPanel } from "@/components/panels/PrinciplesPanel";
 import { FireBanBanner } from "@/components/panels/FireBanBanner";
-import { WeatherCard } from "@/components/panels/WeatherCard";
 import {
   AssessmentCard,
   PositionAssessmentPanel,
 } from "@/components/panels/PositionAssessment";
+import { DebugPanel } from "@/components/panels/DebugPanel";
 import { FirstRunExplainer } from "@/components/panels/FirstRunExplainer";
-import { Disclaimer } from "@/components/panels/Disclaimer";
 
 import { OVERLAYS } from "@/lib/map/layers";
 import { PROPERTY_LAYER_ENABLED } from "@/lib/config";
+import { APP_VERSION } from "@/lib/version";
 import { useHydrated, useOnline, usePersistentState } from "@/lib/hooks";
 import type {
   DataStatus,
@@ -122,6 +122,7 @@ export function AppShell() {
   const [layersOpen, setLayersOpen] = useState(false);
   const [principlesOpen, setPrinciplesOpen] = useState(false);
   const [assessOpen, setAssessOpen] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
   // null = "not decided" → open on first run once hydrated; boolean = user choice.
   const [introOpen, setIntroOpen] = useState<boolean | null>(null);
   const introVisible = introOpen ?? (hydrated && !seenIntro);
@@ -129,6 +130,26 @@ export function AppShell() {
   const locateRef = useRef<(() => void) | null>(null);
   const registerLocate = useCallback((fn: () => void) => {
     locateRef.current = fn;
+  }, []);
+
+  // Keyboard shortcuts (listed in the debug panel).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      if (e.key === "d" || e.key === "D") setDebugOpen((v) => !v);
+      else if (e.key === "l" || e.key === "L") locateRef.current?.();
+      else if (e.key === "Escape") setDebugOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
   }, []);
 
   const toggle = useCallback(
@@ -141,7 +162,6 @@ export function AppShell() {
     if (!open) setSeenIntro(true);
   };
 
-  const anchor = located ?? view?.center ?? null;
   const online = useOnline();
 
   return (
@@ -205,19 +225,13 @@ export function AppShell() {
         </div>
       </div>
 
-      {/* Bottom: prominent assessment, weather, persistent honest framing */}
+      {/* Bottom: the prominent ruling for the selected/located point */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-2 p-3">
         <AssessmentCard
           assessment={assessment}
           onOpenDetails={() => setAssessOpen(true)}
           onUseMyLocation={() => locateRef.current?.()}
         />
-        <div className="pointer-events-auto w-full max-w-md">
-          <WeatherCard anchor={anchor} />
-        </div>
-        <div className="w-full max-w-md">
-          <Disclaimer />
-        </div>
       </div>
 
       <Sheet open={assessOpen} onOpenChange={setAssessOpen}>
@@ -277,6 +291,26 @@ export function AppShell() {
       </Sheet>
 
       <FirstRunExplainer open={introVisible} onOpenChange={handleIntroChange} />
+
+      <button
+        type="button"
+        onClick={() => setDebugOpen(true)}
+        aria-label="Visa debug"
+        className="pointer-events-auto absolute bottom-1 left-1.5 z-20 font-mono text-[10px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+      >
+        v{APP_VERSION}
+      </button>
+
+      <DebugPanel
+        open={debugOpen}
+        onClose={() => setDebugOpen(false)}
+        online={online}
+        view={view}
+        located={located}
+        statuses={statuses}
+        enabled={enabled}
+        assessment={assessment}
+      />
     </div>
   );
 }

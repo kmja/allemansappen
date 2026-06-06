@@ -161,20 +161,19 @@ function gate(
   input: OverlayInput,
   positionInView: boolean,
 ): Pick<RuleAssessment, "verdict" | "headline" | "detail"> | null {
+  // Already hold loaded data covering this point? Trust it — even during a
+  // background refetch, or when the point has been panned off-screen. This is
+  // what keeps a ruling stable while you pan the map around it.
+  if (input.covers) return null;
+
   if (!positionInView) {
     return {
       verdict: "unknown",
       headline: "Utanför kartvyn",
-      detail: "Centrera kartan på din plats för att bedöma här.",
+      detail: "Centrera kartan på platsen för att bedöma den.",
     };
   }
   switch (input.status) {
-    case "loading":
-      return {
-        verdict: "checking",
-        headline: "Kontrollerar…",
-        detail: "Hämtar underlag för din plats.",
-      };
     case "zoom":
       return {
         verdict: "unknown",
@@ -195,17 +194,12 @@ function gate(
         detail: "Slå på lagret för att bedöma här.",
       };
     default:
-      // ready / empty: only trust it if the loaded data actually covers the
-      // point. Otherwise it is stale (a refetch is pending) -> "checking",
-      // never a verdict attributed to the wrong area.
-      if (!input.covers) {
-        return {
-          verdict: "checking",
-          headline: "Kontrollerar…",
-          detail: "Hämtar underlag för platsen.",
-        };
-      }
-      return null;
+      // loading, or ready/empty but not covering this point -> fetch pending.
+      return {
+        verdict: "checking",
+        headline: "Kontrollerar…",
+        detail: "Hämtar underlag för platsen.",
+      };
   }
 }
 

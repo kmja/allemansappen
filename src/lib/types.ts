@@ -107,6 +107,8 @@ export interface PositionAssessment {
   located: boolean;
   /** Whether the assessed point is the GPS fix or a point tapped on the map. */
   origin: "gps" | "picked";
+  /** The assessed point itself (for debugging/inspection). */
+  point?: LngLat;
   /** Whether the assessed point is within the loaded map view (else data is stale). */
   positionInView: boolean;
   rules: RuleAssessment[];

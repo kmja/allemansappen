@@ -9,8 +9,8 @@ you make an informed judgment.
 > **The honest framing (this is the whole point).** Allemansrätten does *not*
 > map cleanly to "green = legal." The app shows information and principles; it
 > **does not tell you it is legal to camp somewhere.** Anything time-sensitive
-> (weather, fire ban) is timestamped, and we link out to official sources rather
-> than restating rules that go stale.
+> (the fire ban) is timestamped, and we link out to official sources rather than
+> restating rules that go stale.
 
 ## What it shows
 
@@ -37,7 +37,8 @@ you make an informed judgment.
 - **Property boundaries** (Lantmäteriet) — optional, requires configured access.
 - **Fire ban (eldningsförbud)** — an honest banner that does **not** assert
   "no ban"; it frames the question and links to your länsstyrelse.
-- **Weather** — SMHI point forecast, timestamped.
+- *(Weather isn't shown — it isn't an allemansrätten rule. The SMHI proxy is
+  kept dormant for a possible future weather-linked feature.)*
 - **GPS centring**, an always-accessible **allemansrätten principles** panel, and
   a first-run explainer of what the app does and doesn't do.
 

@@ -39,10 +39,10 @@ const ready = (features: Feature[]): OverlayInput => ({
   features,
   covers: true,
 });
-const withStatus = (status: DataStatus): OverlayInput => ({
+const stale = (status: DataStatus): OverlayInput => ({
   status,
   features: [],
-  covers: true,
+  covers: false,
 });
 
 describe("pointInRing / pointInFeature", () => {
@@ -125,16 +125,16 @@ describe("assessReserve", () => {
     const r = assessReserve(P, ready([square(5, 5, 0.01)]), true);
     expect(r.verdict).toBe("clear");
   });
-  it("checking while loading, unknown when off-screen", () => {
-    expect(assessReserve(P, withStatus("loading"), true).verdict).toBe("checking");
-    expect(assessReserve(P, withStatus("zoom"), true).verdict).toBe("unknown");
-    expect(assessReserve(P, ready([]), false).verdict).toBe("unknown");
+  it("shows non-verdicts only when there is no covering data", () => {
+    expect(assessReserve(P, stale("loading"), true).verdict).toBe("checking");
+    expect(assessReserve(P, stale("zoom"), true).verdict).toBe("unknown");
+    // in view but data is for another area (refetch pending)
+    expect(assessReserve(P, stale("ready"), true).verdict).toBe("checking");
+    // off-screen with no covering data
+    expect(assessReserve(P, stale("ready"), false).verdict).toBe("unknown");
   });
-  it("stays 'checking' when loaded data doesn't cover the point", () => {
-    expect(
-      assessReserve(P, { status: "ready", features: [], covers: false }, true)
-        .verdict,
-    ).toBe("checking");
+  it("uses covering data even off-screen, staying stable while panning", () => {
+    expect(assessReserve(P, ready([]), false).verdict).toBe("clear");
   });
 });
 
