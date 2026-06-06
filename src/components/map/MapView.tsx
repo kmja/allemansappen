@@ -6,7 +6,6 @@ import {
   Marker,
   NavigationControl,
   ScaleControl,
-  GeolocateControl,
   Popup,
   type GeoJSONSource,
 } from "maplibre-gl";
@@ -23,6 +22,7 @@ import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
   HEMFRIDSZON_RADIUS_M,
+  LOCATED_ZOOM,
   OVERPASS_MIN_ZOOM,
 } from "@/lib/config";
 import type {
@@ -140,6 +140,9 @@ export default function MapView({
   const locatedRef = useRef<LngLat | null>(null);
   const pickedRef = useRef<LngLat | null>(null);
   const markerRef = useRef<Marker | null>(null);
+  const userMarkerRef = useRef<Marker | null>(null);
+  const watchIdRef = useRef<number | null>(null);
+  const firstFixRef = useRef(true);
   const pressTimerRef = useRef<number | undefined>(undefined);
 
   // Imperative hooks so prop-driven effects can call into the map closure.
@@ -204,40 +207,73 @@ export default function MapView({
     map.addControl(new NavigationControl({ showCompass: true }), "top-left");
     map.addControl(new ScaleControl({ unit: "metric" }), "bottom-right");
 
-    const geolocate = new GeolocateControl({
-      positionOptions: { enableHighAccuracy: true },
-      // One-shot, not continuous: a picked point must survive, and the map
-      // shouldn't snap back to GPS every few seconds. The locate button (and
-      // "Använd min plats") re-triggers a fresh fix on demand.
-      trackUserLocation: false,
-      showUserLocation: true,
-    });
-    map.addControl(geolocate, "top-left");
-    geolocate.on("geolocate", (e) => {
-      const pos = e as GeolocationPosition;
-      const coords = {
-        lng: pos.coords.longitude,
-        lat: pos.coords.latitude,
-      };
+    // User geolocation, managed directly so GPS mode updates continuously while
+    // a placed pin (manual mode) freezes the assessment in place. The map
+    // centres on the first fix and on an explicit locate, but doesn't chase.
+    const ensureUserDot = (coords: LngLat) => {
+      if (!userMarkerRef.current) {
+        const el = document.createElement("div");
+        el.style.cssText =
+          "width:16px;height:16px;border-radius:9999px;background:#1d4ed8;border:3px solid #fff;box-shadow:0 0 0 2px rgba(29,78,216,.35)";
+        userMarkerRef.current = new Marker({ element: el });
+      }
+      userMarkerRef.current.setLngLat([coords.lng, coords.lat]).addTo(map);
+    };
+
+    const onPosition = (pos: GeolocationPosition) => {
+      const coords = { lng: pos.coords.longitude, lat: pos.coords.latitude };
       locatedRef.current = coords;
-      // A real GPS fix supersedes any tapped point.
+      ensureUserDot(coords);
+      // Manual mode: keep the live dot, but freeze the assessment on the pin.
+      if (pickedRef.current) return;
+      if (firstFixRef.current) {
+        firstFixRef.current = false;
+        map.easeTo({
+          center: [coords.lng, coords.lat],
+          zoom: Math.max(map.getZoom(), LOCATED_ZOOM),
+        });
+      }
+      propsRef.current.onLocate?.(coords);
+      emitAssessment();
+    };
+
+    const onPositionError = (err: GeolocationPositionError) => {
+      propsRef.current.onLocateError?.(geolocationErrorMessage(err.code));
+    };
+
+    const startWatch = () => {
+      if (watchIdRef.current != null) return;
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        propsRef.current.onLocateError?.(geolocationErrorMessage());
+        return;
+      }
+      watchIdRef.current = navigator.geolocation.watchPosition(
+        onPosition,
+        onPositionError,
+        { enableHighAccuracy: true, maximumAge: 5_000, timeout: 20_000 },
+      );
+    };
+
+    const goToMyLocation = () => {
+      // Explicit return to GPS mode: drop any pin and recentre on the user.
       pickedRef.current = null;
       markerRef.current?.remove();
       markerRef.current = null;
-      propsRef.current.onLocate?.(coords);
-      emitAssessment();
-    });
-    geolocate.on("error", (e) => {
-      const err = e as Partial<GeolocationPositionError>;
-      propsRef.current.onLocateError?.(geolocationErrorMessage(err?.code));
-    });
-    propsRef.current.registerLocate?.(() => {
-      try {
-        geolocate.trigger();
-      } catch {
-        propsRef.current.onLocateError?.(geolocationErrorMessage());
+      startWatch();
+      const coords = locatedRef.current;
+      if (coords) {
+        map.easeTo({
+          center: [coords.lng, coords.lat],
+          zoom: Math.max(map.getZoom(), LOCATED_ZOOM),
+        });
+        propsRef.current.onLocate?.(coords);
+        emitAssessment();
+      } else {
+        firstFixRef.current = true; // centre on the next fix
       }
-    });
+    };
+
+    propsRef.current.registerLocate?.(goToMyLocation);
 
     const setStatus = (kind: OverpassKind, status: DataStatus) => {
       statusRef.current[kind] = status;
@@ -570,22 +606,22 @@ export default function MapView({
         });
       }
 
-      // Try to centre on the user once, after the map is ready.
-      window.setTimeout(() => {
-        try {
-          geolocate.trigger();
-        } catch {
-          /* ignore */
-        }
-      }, 800);
+      // Begin continuously watching the user's location once the map is ready.
+      startWatch();
     });
 
     return () => {
       window.clearTimeout(debounceRef.current);
       window.clearTimeout(pressTimerRef.current);
+      if (watchIdRef.current != null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+      }
+      watchIdRef.current = null;
       for (const kind of ALL_KINDS) abortControllers[kind]?.abort();
       markerRef.current?.remove();
       markerRef.current = null;
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
     };
