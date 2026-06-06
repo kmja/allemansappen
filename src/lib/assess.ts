@@ -123,6 +123,12 @@ export function distanceToFeaturesMeters(p: LngLat, features: Feature[]): number
 export interface OverlayInput {
   status: DataStatus;
   features: Feature[];
+  /**
+   * Whether the assessed point lies within this layer's *loaded* data extent.
+   * Guards against showing a verdict computed from data fetched for a different
+   * area (e.g. just after panning, before the refetch lands).
+   */
+  covers: boolean;
 }
 
 export interface AssessInputs {
@@ -186,7 +192,17 @@ function gate(
         detail: "Slå på lagret för att bedöma här.",
       };
     default:
-      return null; // ready / empty -> evaluate geometry
+      // ready / empty: only trust it if the loaded data actually covers the
+      // point. Otherwise it is stale (a refetch is pending) -> "checking",
+      // never a verdict attributed to the wrong area.
+      if (!input.covers) {
+        return {
+          verdict: "checking",
+          headline: "Kontrollerar…",
+          detail: "Hämtar underlag för platsen.",
+        };
+      }
+      return null;
   }
 }
 

@@ -190,7 +190,10 @@ function VerdictHeadline({ assessment }: { assessment: PositionAssessment }) {
   } else if (assessment.rules.some((r) => r.verdict === "checking")) {
     Icon = Loader2;
     cls = "text-muted-foreground";
-    text = "Hämtar underlag…";
+    text =
+      assessment.origin === "picked"
+        ? "Kontrollerar vald punkt…"
+        : "Kontrollerar din plats…";
     spin = true;
   } else if (tally(assessment.rules).avoid > 0) {
     Icon = AlertOctagon;
@@ -238,6 +241,19 @@ export function AssessmentCard({
   }
 
   const picked = assessment.origin === "picked";
+  // While anything is still resolving for this point, show every rule as
+  // "checking" together — never a half-loaded or stale mix that's hard to
+  // attribute to the pin.
+  const resolving =
+    assessment.positionInView &&
+    assessment.rules.some((r) => r.verdict === "checking");
+  const rows = resolving
+    ? assessment.rules.map((r) => ({
+        ...r,
+        verdict: "checking" as const,
+        headline: "Kontrollerar…",
+      }))
+    : assessment.rules;
   return (
     <div className={card}>
       <div className="flex items-start justify-between gap-2">
@@ -273,7 +289,7 @@ export function AssessmentCard({
       </div>
 
       <div className="mt-2 grid gap-2">
-        {assessment.rules.map((rule) => (
+        {rows.map((rule) => (
           <CompactRow key={rule.id} rule={rule} />
         ))}
       </div>

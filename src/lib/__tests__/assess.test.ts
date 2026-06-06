@@ -37,10 +37,12 @@ function square(cx: number, cy: number, h: number, props = {}): Feature {
 const ready = (features: Feature[]): OverlayInput => ({
   status: "ready",
   features,
+  covers: true,
 });
 const withStatus = (status: DataStatus): OverlayInput => ({
   status,
   features: [],
+  covers: true,
 });
 
 describe("pointInRing / pointInFeature", () => {
@@ -127,6 +129,12 @@ describe("assessReserve", () => {
     expect(assessReserve(P, withStatus("loading"), true).verdict).toBe("checking");
     expect(assessReserve(P, withStatus("zoom"), true).verdict).toBe("unknown");
     expect(assessReserve(P, ready([]), false).verdict).toBe("unknown");
+  });
+  it("stays 'checking' when loaded data doesn't cover the point", () => {
+    expect(
+      assessReserve(P, { status: "ready", features: [], covers: false }, true)
+        .verdict,
+    ).toBe("checking");
   });
 });
 

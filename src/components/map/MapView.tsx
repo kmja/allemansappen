@@ -186,10 +186,20 @@ export default function MapView({
         point.lng <= b.getEast() &&
         point.lat >= b.getSouth() &&
         point.lat <= b.getNorth();
-      const layer = (kind: OverpassKind) => ({
-        status: statusRef.current[kind],
-        features: dataRef.current[kind]?.features ?? [],
-      });
+      const inBBox = (bbox: BBox | undefined) =>
+        !!bbox &&
+        point.lng >= bbox[0] &&
+        point.lng <= bbox[2] &&
+        point.lat >= bbox[1] &&
+        point.lat <= bbox[3];
+      const layer = (kind: OverpassKind) => {
+        const resp = dataRef.current[kind];
+        return {
+          status: statusRef.current[kind],
+          features: resp?.features ?? [],
+          covers: inBBox(resp?.meta.bbox),
+        };
+      };
       cb({
         located: true,
         origin,

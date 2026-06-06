@@ -131,7 +131,7 @@ describe("AssessmentCard", () => {
       })),
     };
     render(<AssessmentCard assessment={checking} onOpenDetails={() => {}} />);
-    expect(screen.getByText(/Hämtar underlag/i)).toBeInTheDocument();
+    expect(screen.getByText(/Kontrollerar din plats/i)).toBeInTheDocument();
   });
 
   it("opens the detail sheet via the Detaljer button", async () => {
