@@ -14,14 +14,15 @@ import type { FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { getBasemap } from "@/lib/map/basemap";
-import { OVERLAY_COLORS } from "@/lib/map/layers";
+import { CAUTION_COLOR, NOCAMP_COLOR, OVERLAY_COLORS } from "@/lib/map/layers";
 import { getJson } from "@/lib/data/client";
 import { safeHttpUrl } from "@/lib/url";
 import { assessPosition } from "@/lib/assess";
 import {
+  BUILDING_CAUTION_M,
+  BUILDING_NOCAMP_M,
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
-  HEMFRIDSZON_RADIUS_M,
   LOCATED_ZOOM,
   OVERPASS_MIN_ZOOM,
 } from "@/lib/config";
@@ -209,7 +210,8 @@ export default function MapView({
           cultivated: layer("landuse"),
           buildings: layer("buildings"),
           positionInView,
-          hemfridszonRadiusM: HEMFRIDSZON_RADIUS_M,
+          buildingNoCampM: BUILDING_NOCAMP_M,
+          buildingCautionM: BUILDING_CAUTION_M,
         }),
       });
     };
@@ -310,12 +312,17 @@ export default function MapView({
       src?.setData(fc);
     };
 
-    const updateHemfridszon = () => {
-      const src = map.getSource("src-hemfridszon") as GeoJSONSource | undefined;
-      if (!src) return;
+    const updateBuildingZones = () => {
+      const outer = map.getSource("src-zone-outer") as GeoJSONSource | undefined;
+      const inner = map.getSource("src-zone-inner") as GeoJSONSource | undefined;
+      if (!outer || !inner) return;
       const buildings = dataRef.current.buildings;
-      if (!propsRef.current.enabled.hemfridszon || !buildings?.features.length) {
-        src.setData(EMPTY_FC);
+      if (
+        !propsRef.current.enabled.hemfridszon ||
+        !buildings?.features.length
+      ) {
+        outer.setData(EMPTY_FC);
+        inner.setData(EMPTY_FC);
         return;
       }
       try {
@@ -323,12 +330,15 @@ export default function MapView({
           type: "FeatureCollection",
           features: buildings.features.slice(0, 500),
         };
-        const buffered = buffer(capped, HEMFRIDSZON_RADIUS_M, {
-          units: "meters",
-        });
-        src.setData(buffered ?? EMPTY_FC);
+        // Outer amber covers 0–CAUTION; inner red covers 0–NOCAMP and is drawn
+        // on top, so the visible bands read red <60 m, amber 60–100 m.
+        const out = buffer(capped, BUILDING_CAUTION_M, { units: "meters" });
+        const inn = buffer(capped, BUILDING_NOCAMP_M, { units: "meters" });
+        outer.setData(out ?? EMPTY_FC);
+        inner.setData(inn ?? EMPTY_FC);
       } catch {
-        src.setData(EMPTY_FC);
+        outer.setData(EMPTY_FC);
+        inner.setData(EMPTY_FC);
       }
     };
 
@@ -354,7 +364,7 @@ export default function MapView({
         dataRef.current[kind] = data;
         setSourceData(kind, data);
         setStatus(kind, data.features.length ? "ready" : "empty");
-        if (kind === "buildings") updateHemfridszon();
+        if (kind === "buildings") updateBuildingZones();
       } catch {
         if (ac.signal.aborted) return;
         setStatus(kind, "error");
@@ -378,7 +388,7 @@ export default function MapView({
         }
         void fetchKind(kind, bbox);
       }
-      updateHemfridszon();
+      updateBuildingZones();
     };
     refreshRef.current = refreshOverlays;
 
@@ -391,8 +401,10 @@ export default function MapView({
       };
       vis("buildings-fill", e.buildings);
       vis("buildings-line", e.buildings);
-      vis("hemfridszon-fill", e.hemfridszon);
-      vis("hemfridszon-line", e.hemfridszon);
+      vis("zone-outer-fill", e.hemfridszon);
+      vis("zone-outer-line", e.hemfridszon);
+      vis("zone-inner-fill", e.hemfridszon);
+      vis("zone-inner-line", e.hemfridszon);
       vis("landuse-fill", e.landuse);
       vis("landuse-line", e.landuse);
       vis("reserves-fill", e.reserves);
@@ -433,13 +445,20 @@ export default function MapView({
     };
 
     const addSourcesAndLayers = () => {
-      for (const kind of [...ALL_KINDS, "hemfridszon" as const]) {
-        if (!map.getSource(`src-${kind}`)) {
-          map.addSource(`src-${kind}`, { type: "geojson", data: EMPTY_FC });
+      for (const id of [
+        "src-buildings",
+        "src-landuse",
+        "src-reserves",
+        "src-zone-outer",
+        "src-zone-inner",
+      ]) {
+        if (!map.getSource(id)) {
+          map.addSource(id, { type: "geojson", data: EMPTY_FC });
         }
       }
 
-      // Order: cultivated land at the bottom, buildings on top.
+      // Bottom -> top: cultivated land, reserves, the amber 60–100 m building
+      // band, the red <60 m no-camp band, then buildings on top.
       map.addLayer({
         id: "landuse-fill",
         type: "fill",
@@ -454,26 +473,6 @@ export default function MapView({
       });
 
       map.addLayer({
-        id: "hemfridszon-fill",
-        type: "fill",
-        source: "src-hemfridszon",
-        paint: {
-          "fill-color": OVERLAY_COLORS.hemfridszon,
-          "fill-opacity": 0.15,
-        },
-      });
-      map.addLayer({
-        id: "hemfridszon-line",
-        type: "line",
-        source: "src-hemfridszon",
-        paint: {
-          "line-color": OVERLAY_COLORS.hemfridszon,
-          "line-width": 1,
-          "line-dasharray": [2, 2],
-        },
-      });
-
-      map.addLayer({
         id: "reserves-fill",
         type: "fill",
         source: "src-reserves",
@@ -484,6 +483,36 @@ export default function MapView({
         type: "line",
         source: "src-reserves",
         paint: { "line-color": OVERLAY_COLORS.reserves, "line-width": 2 },
+      });
+
+      map.addLayer({
+        id: "zone-outer-fill",
+        type: "fill",
+        source: "src-zone-outer",
+        paint: { "fill-color": CAUTION_COLOR, "fill-opacity": 0.2 },
+      });
+      map.addLayer({
+        id: "zone-outer-line",
+        type: "line",
+        source: "src-zone-outer",
+        paint: {
+          "line-color": CAUTION_COLOR,
+          "line-width": 1,
+          "line-dasharray": [2, 2],
+        },
+      });
+
+      map.addLayer({
+        id: "zone-inner-fill",
+        type: "fill",
+        source: "src-zone-inner",
+        paint: { "fill-color": NOCAMP_COLOR, "fill-opacity": 0.33 },
+      });
+      map.addLayer({
+        id: "zone-inner-line",
+        type: "line",
+        source: "src-zone-inner",
+        paint: { "line-color": NOCAMP_COLOR, "line-width": 1.2 },
       });
 
       map.addLayer({
@@ -507,21 +536,50 @@ export default function MapView({
       const props = e.features?.[0]?.properties ?? {};
       const name =
         typeof props.name === "string" ? props.name : "Naturreservat";
-      // OSM tags are world-editable, so validate the scheme before trusting
-      // the value as a link target — blocks javascript:/data: URLs here.
+
+      // OSM tags are world-editable, so every link target is scheme-validated
+      // (safeHttpUrl) before it reaches an href.
+      const link = (href: string, label: string) =>
+        `<a href="${escapeHtml(href)}" target="_blank" rel="noreferrer" style="color:var(--primary);display:block;margin-top:3px">${label}</a>`;
+      const links: string[] = [];
+
       const website =
         safeHttpUrl(props.website) ?? safeHttpUrl(props["contact:website"]);
-      const officialLink = website
-        ? `<a href="${escapeHtml(website)}" target="_blank" rel="noreferrer" style="color:var(--primary);display:block;margin-bottom:2px">Officiell sida ↗</a>`
-        : "";
+      if (website) links.push(link(website, "Officiell sida ↗"));
+
+      // OSM "wikipedia" tag looks like "sv:Artikelnamn".
+      const wiki =
+        typeof props.wikipedia === "string"
+          ? /^([a-z]{2,3}):(.+)$/i.exec(props.wikipedia)
+          : null;
+      if (wiki) {
+        const wikiUrl = safeHttpUrl(
+          `https://${wiki[1].toLowerCase()}.wikipedia.org/wiki/${encodeURIComponent(
+            wiki[2].replace(/ /g, "_"),
+          )}`,
+        );
+        if (wikiUrl) links.push(link(wikiUrl, "Wikipedia ↗"));
+      }
+
+      // The actual local rules are the reserve's föreskrifter — search them out.
+      const search = `https://www.google.com/search?q=${encodeURIComponent(
+        `${name} naturreservat föreskrifter`,
+      )}`;
+      links.push(link(search, "Sök föreskrifter (lokala regler) ↗"));
+      links.push(
+        link(
+          "https://skyddadnatur.naturvardsverket.se/",
+          "Naturvårdsverket: Skyddad natur ↗",
+        ),
+      );
+
       const html =
-        `<div style="font-size:13px;line-height:1.45;max-width:220px">` +
+        `<div style="font-size:13px;line-height:1.45;max-width:240px">` +
         `<div style="font-weight:600;margin-bottom:2px">${escapeHtml(name)}</div>` +
-        `<div style="opacity:.7;margin-bottom:6px">Skyddat område – egna regler gäller. Läs beslut/skyltar på plats.</div>` +
-        officialLink +
-        `<a href="https://skyddadnatur.naturvardsverket.se/" target="_blank" rel="noreferrer" style="color:var(--primary);display:block">Naturvårdsverket: Skyddad natur ↗</a>` +
+        `<div style="opacity:.75;margin-bottom:4px">Skyddat område med egna <b>föreskrifter</b> – ofta begränsas eldning och tältning. Läs reglerna innan du tältar:</div>` +
+        links.join("") +
         `</div>`;
-      new Popup({ closeButton: true, maxWidth: "260px" })
+      new Popup({ closeButton: true, maxWidth: "280px" })
         .setLngLat(e.lngLat)
         .setHTML(html)
         .addTo(map);

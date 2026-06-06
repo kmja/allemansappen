@@ -31,5 +31,10 @@ export const LOCATED_ZOOM = 15;
  */
 export const OVERPASS_MIN_ZOOM = 13;
 
-/** Indicative hemfridszon buffer radius (metres). Legally fuzzy — see UI copy. */
-export const HEMFRIDSZON_RADIUS_M = 65;
+/**
+ * Building-distance zones (metres). Within NOCAMP you should not camp (shown in
+ * red); NOCAMP–CAUTION is a softer "likely too close" band (amber). Hemfridszon
+ * is legally fuzzy, so these are guidance — not an exact legal line (see UI).
+ */
+export const BUILDING_NOCAMP_M = 60;
+export const BUILDING_CAUTION_M = 100;

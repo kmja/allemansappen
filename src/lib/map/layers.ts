@@ -1,10 +1,14 @@
 import type { OverlayId, OverpassKind } from "../types";
 
+/** Building-distance zone fills (thresholds live in config). */
+export const NOCAMP_COLOR = "#dc2626"; // red — within 60 m: don't camp
+export const CAUTION_COLOR = "#f59e0b"; // amber — 60–100 m: likely too close
+
 /** Legend / render colours per overlay. */
 export const OVERLAY_COLORS: Record<OverlayId, string> = {
   property: "#4338ca", // indigo
   buildings: "#9a3412", // burnt orange
-  hemfridszon: "#f59e0b", // amber (indicative)
+  hemfridszon: NOCAMP_COLOR, // red (no-camp zone)
   landuse: "#ca8a04", // ochre (caution)
   reserves: "#15803d", // forest green
 };
@@ -40,10 +44,10 @@ export const OVERLAYS: OverlayConfig[] = [
   },
   {
     id: "hemfridszon",
-    label: "Hemfridszon (indikativ)",
+    label: "Avstånd till byggnader",
     description:
-      "Mjuk ~65 m-zon runt byggnader. Endast vägledande – inte en juridisk gräns.",
-    defaultEnabled: false,
+      "Rött: inom 60 m – tälta inte (hemfridszon). Gult: 60–100 m – troligen för nära. Vägledande, inte en exakt gräns.",
+    defaultEnabled: true,
     source: "derived",
     needsZoom: true,
     color: OVERLAY_COLORS.hemfridszon,

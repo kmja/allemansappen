@@ -26,11 +26,14 @@ you make an informed judgment.
 - **Buildings** — the reasoning aid for *hemfridszon* (the private zone around a
   dwelling). There is no national hemfridszon polygon; showing buildings lets you
   apply the ~60–70 m intuition yourself.
-- **Hemfridszon (indicative)** — an optional, clearly-labelled ~65 m soft buffer
-  around buildings. Vägledande only — never asserted as a legal boundary.
+- **Building-distance zones** — a **red** no-camp band within 60 m of buildings
+  and an **amber** "likely too close" band from 60–100 m. Vägledande only —
+  hemfridszon is not an exact legal line.
 - **Cultivated land** (åker, äng, planteringar…) where camping should be avoided.
-- **Nature reserves** — tap a reserve to open its official page (we link out; we
-  do **not** restate per-reserve rules from parsed PDFs).
+- **Nature reserves** — tap a reserve for its name plus link-outs to find the
+  **föreskrifter** (the legal local rules): official site / Wikipedia (from OSM
+  tags when present), a targeted föreskrifter search, and Naturvårdsverket's
+  Skyddad natur. We link to the rules rather than restating parsed PDFs.
 - **Property boundaries** (Lantmäteriet) — optional, requires configured access.
 - **Fire ban (eldningsförbud)** — an honest banner that does **not** assert
   "no ban"; it frames the question and links to your länsstyrelse.
@@ -93,7 +96,7 @@ still on the roadmap.)
 | --- | --- | --- |
 | Basemap (topo) | OpenStreetMap raster | No (swappable via env) |
 | Buildings / cultivated land / reserves | OpenStreetMap via **Overpass** | No |
-| Hemfridszon (indicative) | Derived from buildings (`@turf/buffer`) | No |
+| Building-distance zones (60 m / 100 m) | Derived from buildings (`@turf/buffer`) | No |
 | Weather | **SMHI** open API | No |
 | Fire ban | Honest link-out to länsstyrelse / MSB | No |
 | Property boundaries | **Lantmäteriet** (proxied) | **Yes** |

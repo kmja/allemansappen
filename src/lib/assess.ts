@@ -137,7 +137,10 @@ export interface AssessInputs {
   buildings: OverlayInput;
   /** Is the GPS point inside the currently-loaded map view? */
   positionInView: boolean;
-  hemfridszonRadiusM: number;
+  /** Within this distance from a building: no-camp (avoid). */
+  buildingNoCampM: number;
+  /** Up to this distance from a building: caution band (judgment). */
+  buildingCautionM: number;
 }
 
 function mk(
@@ -268,45 +271,46 @@ export function assessHemfridszon(
   p: LngLat,
   input: OverlayInput,
   positionInView: boolean,
-  radiusM: number,
+  noCampM: number,
+  cautionM: number,
 ): RuleAssessment {
   const g = gate(input, positionInView);
   if (g) return mk("hemfridszon", "Hemfridszon", g.verdict, g.headline, g.detail);
   const d = distanceToFeaturesMeters(p, input.features);
-  if (d === 0) {
-    return mk(
-      "hemfridszon",
-      "Hemfridszon",
-      "avoid",
-      "Vid en byggnad",
-      "Du är vid en byggnad. Tälta inte i någons hemfridszon – håll gott avstånd och undvik insyn mot bostäder.",
-    );
-  }
   if (!Number.isFinite(d)) {
     return mk(
       "hemfridszon",
       "Hemfridszon",
-      "judgment",
+      "clear",
       "Inga byggnader nära",
-      "Inga byggnader hittades i närheten (enligt OSM). Hemfridszonen är ändå din bedömning – undvik insyn mot bostäder.",
+      "Inga byggnader hittades i närheten (enligt OSM). Tänk ändå på insyn mot bostäder.",
+    );
+  }
+  if (d < noCampM) {
+    return mk(
+      "hemfridszon",
+      "Hemfridszon",
+      "avoid",
+      d === 0 ? "Vid en byggnad" : `Inom ${noCampM} m från byggnad`,
+      `Så nära en bostad ska du inte tälta – det räknas som hemfridszon. Håll minst ${noCampM} m och undvik insyn.`,
     );
   }
   const m = round5(d);
-  if (d < radiusM) {
+  if (d < cautionM) {
     return mk(
       "hemfridszon",
       "Hemfridszon",
       "judgment",
       `~${m} m till byggnad`,
-      "Kan ligga inom hemfridszonen. Den är ingen exakt linje – håll större avstånd och undvik insyn. Din bedömning.",
+      `${noCampM}–${cautionM} m från en byggnad – kan fortfarande vara för nära. Din bedömning; undvik insyn mot bostäder.`,
     );
   }
   return mk(
     "hemfridszon",
     "Hemfridszon",
-    "judgment",
+    "clear",
     `~${m} m till byggnad`,
-    "Utanför en typisk hemfridszon, men du avgör – tänk på sikt och avstånd till bostäder.",
+    "Gott avstånd till närmaste byggnad. Tänk ändå på sikt mot bostäder.",
   );
 }
 
@@ -331,7 +335,8 @@ export function assessPosition(
       p,
       inputs.buildings,
       inputs.positionInView,
-      inputs.hemfridszonRadiusM,
+      inputs.buildingNoCampM,
+      inputs.buildingCautionM,
     ),
     assessFire(),
   ];

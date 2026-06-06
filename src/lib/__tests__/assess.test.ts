@@ -148,23 +148,47 @@ describe("assessCultivated", () => {
 describe("assessHemfridszon", () => {
   it("avoid when standing on a building", () => {
     expect(
-      assessHemfridszon(P, ready([square(0, 0, 0.0005)]), true, 65).verdict,
+      assessHemfridszon(P, ready([square(0, 0, 0.0005)]), true, 60, 100).verdict,
     ).toBe("avoid");
   });
-  it("judgment (inom) when within the radius", () => {
-    const r = assessHemfridszon(P, ready([square(0, 0.0003, 0.00003)]), true, 65);
+  it("avoid within the no-camp distance (<60 m)", () => {
+    // building centre ~0.0003 deg (~33 m) away -> within 60 m
+    const r = assessHemfridszon(
+      P,
+      ready([square(0, 0.0003, 0.00003)]),
+      true,
+      60,
+      100,
+    );
+    expect(r.verdict).toBe("avoid");
+    expect(r.headline).toContain("Inom 60 m");
+  });
+  it("judgment in the 60–100 m caution band", () => {
+    // ~0.0007 deg (~78 m)
+    const r = assessHemfridszon(
+      P,
+      ready([square(0, 0.0007, 0.00003)]),
+      true,
+      60,
+      100,
+    );
     expect(r.verdict).toBe("judgment");
-    expect(r.detail).toContain("inom hemfridszonen");
     expect(r.headline).toMatch(/m till byggnad/);
   });
-  it("judgment (utanför) when beyond the radius", () => {
-    const r = assessHemfridszon(P, ready([square(0, 0.001, 0.00003)]), true, 65);
-    expect(r.verdict).toBe("judgment");
-    expect(r.detail).toContain("Utanför");
+  it("clear beyond the caution distance (>100 m)", () => {
+    // ~0.0012 deg (~133 m)
+    const r = assessHemfridszon(
+      P,
+      ready([square(0, 0.0012, 0.00003)]),
+      true,
+      60,
+      100,
+    );
+    expect(r.verdict).toBe("clear");
   });
-  it("judgment with no buildings nearby", () => {
-    const r = assessHemfridszon(P, ready([]), true, 65);
-    expect(r.verdict).toBe("judgment");
+  it("clear with no buildings nearby", () => {
+    const r = assessHemfridszon(P, ready([]), true, 60, 100);
+    expect(r.verdict).toBe("clear");
     expect(r.headline).toContain("Inga byggnader");
   });
 });
@@ -179,7 +203,8 @@ describe("assessFire / assessPosition", () => {
       cultivated: ready([]),
       buildings: ready([]),
       positionInView: true,
-      hemfridszonRadiusM: 65,
+      buildingNoCampM: 60,
+      buildingCautionM: 100,
     });
     expect(rules.map((r) => r.id)).toEqual([
       "reserve",

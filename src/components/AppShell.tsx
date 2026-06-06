@@ -90,7 +90,8 @@ export function AppShell() {
   );
 
   const [enabled, setEnabled] = usePersistentState<Record<OverlayId, boolean>>(
-    "fch:overlays",
+    // v2: building-distance zones default on, so reset stored toggle prefs.
+    "fch:overlays:v2",
     defaultEnabled,
   );
   const [county, setCounty] = usePersistentState<string | null>(
