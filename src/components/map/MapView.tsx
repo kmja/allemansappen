@@ -154,6 +154,7 @@ export default function MapView({
     reserves: null,
   });
   const prefetchTimerRef = useRef<number | undefined>(undefined);
+  const fetchMsRef = useRef<number | null>(null);
 
   // Imperative hooks so prop-driven effects can call into the map closure.
   const applyRef = useRef<() => void>(() => {});
@@ -392,11 +393,16 @@ export default function MapView({
       const ac = new AbortController();
       abortRef.current[kind] = ac;
       setStatus(kind, "loading");
+      const t0 = performance.now();
       try {
         const data = await getJson<OverpassResponse>(
           `/api/overpass?kind=${kind}&bbox=${bbox.join(",")}`,
           ac.signal,
         );
+        // Track how responsive Overpass is, to size the background prefetch.
+        const dt = performance.now() - t0;
+        fetchMsRef.current =
+          fetchMsRef.current == null ? dt : fetchMsRef.current * 0.6 + dt * 0.4;
         dataRef.current[kind] = data;
         setSourceData(kind, data);
         setStatus(kind, data.features.length ? "ready" : "empty");
@@ -436,9 +442,16 @@ export default function MapView({
     // immediate fetch near the point — only sparse areas grow coverage.
     const prefetchAround = (center: LngLat) => {
       if (map.getZoom() < OVERPASS_MIN_ZOOM) return;
-      const latHalf = PREFETCH_HALF_KM / 111;
-      const lngHalf =
-        PREFETCH_HALF_KM / (111 * Math.cos((center.lat * Math.PI) / 180));
+      // Grab more area when Overpass is responding fast (sparse/forest), less —
+      // or nothing — when it's slow. Default until we have a measurement.
+      const ms = fetchMsRef.current;
+      const halfKm =
+        ms == null
+          ? PREFETCH_HALF_KM
+          : Math.max(0, Math.min(7, (7 * (2000 - ms)) / 1600));
+      if (halfKm < 3) return; // too small to be worth a request
+      const latHalf = halfKm / 111;
+      const lngHalf = halfKm / (111 * Math.cos((center.lat * Math.PI) / 180));
       const bbox: BBox = [
         center.lng - lngHalf,
         center.lat - latHalf,
