@@ -361,6 +361,24 @@ export default function MapView({
       return kinds;
     };
 
+    // True when every needed layer's last fetch already covers this point — so
+    // we can re-rule from cached data without hitting the network again.
+    const coversPoint = (p: LngLat): boolean => {
+      for (const kind of neededKinds()) {
+        const bbox = dataRef.current[kind]?.meta.bbox;
+        if (
+          !bbox ||
+          p.lng < bbox[0] ||
+          p.lng > bbox[2] ||
+          p.lat < bbox[1] ||
+          p.lat > bbox[3]
+        ) {
+          return false;
+        }
+      }
+      return true;
+    };
+
     const fetchKind = async (kind: OverpassKind, bbox: BBox) => {
       abortRef.current[kind]?.abort();
       const ac = new AbortController();
@@ -627,8 +645,9 @@ export default function MapView({
             .addTo(map);
         }
         emitAssessment();
-        // Load overlays for the pinned area once; subsequent pans stay frozen.
-        refreshOverlays();
+        // Only fetch when the existing data doesn't already cover the new pin,
+        // so nudging the pin within the loaded area is instant (no refetch).
+        if (!coversPoint(p)) refreshOverlays();
       };
 
       const LONG_PRESS_MS = 500;
