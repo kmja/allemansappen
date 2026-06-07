@@ -19,15 +19,22 @@ const LANDUSE_VALUES = [
   "greenhouse_horticulture",
 ].join("|");
 
+/** Per-kind cap on Overpass elements returned (`out geom N`). */
+export const OUT_LIMITS: Record<OverpassKind, number> = {
+  buildings: 3000,
+  landuse: 2000,
+  reserves: 800,
+};
+
 export function buildOverpassQuery(kind: OverpassKind, bbox: BBox): string {
   const bb = bboxToOverpass(bbox);
   switch (kind) {
     case "buildings":
-      return `[out:json][timeout:25];(way["building"](${bb});relation["building"](${bb}););out geom 3000;`;
+      return `[out:json][timeout:25];(way["building"](${bb});relation["building"](${bb}););out geom ${OUT_LIMITS.buildings};`;
     case "landuse":
-      return `[out:json][timeout:25];(way["landuse"~"^(${LANDUSE_VALUES})$"](${bb});relation["landuse"~"^(${LANDUSE_VALUES})$"](${bb}););out geom 2000;`;
+      return `[out:json][timeout:25];(way["landuse"~"^(${LANDUSE_VALUES})$"](${bb});relation["landuse"~"^(${LANDUSE_VALUES})$"](${bb}););out geom ${OUT_LIMITS.landuse};`;
     case "reserves":
-      return `[out:json][timeout:25];(way["leisure"="nature_reserve"](${bb});relation["leisure"="nature_reserve"](${bb});way["boundary"="protected_area"](${bb});relation["boundary"="protected_area"](${bb}););out geom 800;`;
+      return `[out:json][timeout:25];(way["leisure"="nature_reserve"](${bb});relation["leisure"="nature_reserve"](${bb});way["boundary"="protected_area"](${bb});relation["boundary"="protected_area"](${bb}););out geom ${OUT_LIMITS.reserves};`;
     default:
       throw new Error(`Unknown overpass kind: ${kind satisfies never}`);
   }

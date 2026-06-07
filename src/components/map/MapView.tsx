@@ -18,6 +18,7 @@ import { CAUTION_COLOR, NOCAMP_COLOR, OVERLAY_COLORS } from "@/lib/map/layers";
 import { getJson } from "@/lib/data/client";
 import { safeHttpUrl } from "@/lib/url";
 import { assessPosition } from "@/lib/assess";
+import { OUT_LIMITS } from "@/lib/osm";
 import {
   BUILDING_CAUTION_M,
   BUILDING_NOCAMP_M,
@@ -25,6 +26,7 @@ import {
   DEFAULT_ZOOM,
   LOCATED_ZOOM,
   OVERPASS_MIN_ZOOM,
+  PREFETCH_HALF_KM,
 } from "@/lib/config";
 import type {
   BBox,
@@ -146,6 +148,12 @@ export default function MapView({
   const firstFixRef = useRef(true);
   const userInteractedRef = useRef(false);
   const pressTimerRef = useRef<number | undefined>(undefined);
+  const prefetchAbortRef = useRef<Record<OverpassKind, AbortController | null>>({
+    buildings: null,
+    landuse: null,
+    reserves: null,
+  });
+  const prefetchTimerRef = useRef<number | undefined>(undefined);
 
   // Imperative hooks so prop-driven effects can call into the map closure.
   const applyRef = useRef<() => void>(() => {});
@@ -422,6 +430,63 @@ export default function MapView({
     };
     refreshRef.current = refreshOverlays;
 
+    // Background prefetch: after a pin settles, quietly pull a larger surround so
+    // nearby spots rule instantly. No loading state (silent), and a truncated
+    // (dense-area) result is ignored so it never replaces the more accurate
+    // immediate fetch near the point — only sparse areas grow coverage.
+    const prefetchAround = (center: LngLat) => {
+      if (map.getZoom() < OVERPASS_MIN_ZOOM) return;
+      const latHalf = PREFETCH_HALF_KM / 111;
+      const lngHalf =
+        PREFETCH_HALF_KM / (111 * Math.cos((center.lat * Math.PI) / 180));
+      const bbox: BBox = [
+        center.lng - lngHalf,
+        center.lat - latHalf,
+        center.lng + lngHalf,
+        center.lat + latHalf,
+      ];
+      for (const kind of neededKinds()) {
+        const have = dataRef.current[kind]?.meta.bbox;
+        if (
+          have &&
+          have[0] <= bbox[0] &&
+          have[1] <= bbox[1] &&
+          have[2] >= bbox[2] &&
+          have[3] >= bbox[3]
+        ) {
+          continue; // already covered by an equal/larger fetch
+        }
+        prefetchAbortRef.current[kind]?.abort();
+        const ac = new AbortController();
+        prefetchAbortRef.current[kind] = ac;
+        getJson<OverpassResponse>(
+          `/api/overpass?kind=${kind}&bbox=${bbox.join(",")}`,
+          ac.signal,
+        )
+          .then((data) => {
+            // Truncated dense-area result -> keep the accurate immediate fetch.
+            if (data.features.length >= OUT_LIMITS[kind] * 0.9) return;
+            dataRef.current[kind] = data;
+            setSourceData(kind, data);
+            statusRef.current[kind] = data.features.length ? "ready" : "empty";
+            propsRef.current.onStatusChange?.({ ...statusRef.current });
+            if (kind === "buildings") updateBuildingZones();
+            emitAssessment();
+          })
+          .catch(() => {
+            /* background; ignore (including aborts) */
+          });
+      }
+    };
+
+    const schedulePrefetch = (center: LngLat) => {
+      window.clearTimeout(prefetchTimerRef.current);
+      prefetchTimerRef.current = window.setTimeout(
+        () => prefetchAround(center),
+        600,
+      );
+    };
+
     const applyVisibility = () => {
       const e = propsRef.current.enabled;
       const vis = (id: string, on: boolean) => {
@@ -648,6 +713,8 @@ export default function MapView({
         // Only fetch when the existing data doesn't already cover the new pin,
         // so nudging the pin within the loaded area is instant (no refetch).
         if (!coversPoint(p)) refreshOverlays();
+        // …then grow coverage around it in the background for nearby checks.
+        schedulePrefetch(p);
       };
 
       const LONG_PRESS_MS = 500;
@@ -717,11 +784,13 @@ export default function MapView({
     return () => {
       window.clearTimeout(debounceRef.current);
       window.clearTimeout(pressTimerRef.current);
+      window.clearTimeout(prefetchTimerRef.current);
       if (watchIdRef.current != null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
       watchIdRef.current = null;
       for (const kind of ALL_KINDS) abortControllers[kind]?.abort();
+      for (const kind of ALL_KINDS) prefetchAbortRef.current[kind]?.abort();
       markerRef.current?.remove();
       markerRef.current = null;
       userMarkerRef.current?.remove();

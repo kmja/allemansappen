@@ -32,6 +32,13 @@ export const LOCATED_ZOOM = 15;
 export const OVERPASS_MIN_ZOOM = 13;
 
 /**
+ * Half-size (km) of the area quietly prefetched around a dropped pin so nearby
+ * spots rule instantly without another fetch. Kept well under the
+ * /api/overpass area cap (≈100 km² here).
+ */
+export const PREFETCH_HALF_KM = 5;
+
+/**
  * Building-distance zones (metres). Within NOCAMP you should not camp (shown in
  * red); NOCAMP–CAUTION is a softer "likely too close" band (amber). Hemfridszon
  * is legally fuzzy, so these are guidance — not an exact legal line (see UI).
