@@ -118,7 +118,8 @@ export function DebugPanel({
         <div className="mb-1 text-muted-foreground">shortcuts</div>
         <Row k="d" v="toggla debug" />
         <Row k="l" v="min plats" />
-        <Row k="tryck & håll" v="bedöm punkt" />
+        <Row k="tryck" v="placera nål" />
+        <Row k="håll på nål" v="flytta nålen" />
         <Row k="esc" v="stäng debug" />
       </div>
     </div>

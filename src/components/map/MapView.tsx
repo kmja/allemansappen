@@ -59,13 +59,6 @@ interface MapViewProps {
 const ALL_KINDS: OverpassKind[] = ["buildings", "landuse", "reserves"];
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 
-/** Minimal shape shared by MapLibre's mouse/touch events for press detection. */
-type PressEvent = {
-  point: { x: number; y: number };
-  lngLat: { lng: number; lat: number };
-  points?: unknown[];
-};
-
 function geolocationErrorMessage(code?: number): string {
   switch (code) {
     case 1:
@@ -147,7 +140,6 @@ export default function MapView({
   const watchIdRef = useRef<number | null>(null);
   const firstFixRef = useRef(true);
   const userInteractedRef = useRef(false);
-  const pressTimerRef = useRef<number | undefined>(undefined);
   const prefetchAbortRef = useRef<Record<OverpassKind, AbortController | null>>({
     buildings: null,
     landuse: null,
@@ -237,7 +229,7 @@ export default function MapView({
       if (!userMarkerRef.current) {
         const el = document.createElement("div");
         el.style.cssText =
-          "width:16px;height:16px;border-radius:9999px;background:#1d4ed8;border:3px solid #fff;box-shadow:0 0 0 2px rgba(29,78,216,.35)";
+          "width:16px;height:16px;border-radius:9999px;background:#1d4ed8;border:3px solid #fff;box-shadow:0 0 0 2px rgba(29,78,216,.35);pointer-events:none";
         userMarkerRef.current = new Marker({ element: el });
       }
       userMarkerRef.current.setLngLat([coords.lng, coords.lat]).addTo(map);
@@ -710,75 +702,136 @@ export default function MapView({
         debounceRef.current = window.setTimeout(refreshOverlays, 400);
       });
 
-      // Long-press (touch) / press-and-hold (mouse) anywhere to assess that
-      // exact spot — avoids casual taps dropping a marker. A picked point
-      // supersedes GPS until you press the locate button again.
+      // Single tap places (or moves) the pin; long-press the pin to grab it (it
+      // lifts) and drag it around. A picked point supersedes GPS until you press
+      // the locate button.
+      let suppressClickUntil = 0;
+
       const setPickedPoint = (p: LngLat) => {
         pickedRef.current = p;
         if (markerRef.current) {
           markerRef.current.setLngLat([p.lng, p.lat]);
         } else {
-          markerRef.current = new Marker({ color: "#1f2937" })
+          markerRef.current = new Marker({
+            element: createPinElement(),
+            anchor: "bottom",
+          })
             .setLngLat([p.lng, p.lat])
             .addTo(map);
         }
         emitAssessment();
         // Only fetch when the existing data doesn't already cover the new pin,
-        // so nudging the pin within the loaded area is instant (no refetch).
+        // so nudging within the loaded area is instant (no refetch).
         if (!coversPoint(p)) refreshOverlays();
         // …then grow coverage around it in the background for nearby checks.
         schedulePrefetch(p);
       };
 
-      const LONG_PRESS_MS = 500;
-      const MOVE_TOLERANCE = 12;
-      let pressStart: { x: number; y: number; lngLat: LngLat } | null = null;
-
-      const cancelPress = () => {
-        window.clearTimeout(pressTimerRef.current);
-        pressTimerRef.current = undefined;
-        pressStart = null;
+      // Lightweight live move during a drag — re-rules from already-loaded data
+      // (instant); the refetch/prefetch runs once on drop.
+      const movePin = (p: LngLat) => {
+        pickedRef.current = p;
+        markerRef.current?.setLngLat([p.lng, p.lat]);
+        emitAssessment();
       };
 
-      const beginPress = (e: PressEvent) => {
-        if (e.points && e.points.length > 1) {
-          cancelPress(); // pinch / multi-touch is never a long-press
-          return;
-        }
-        pressStart = {
-          x: e.point.x,
-          y: e.point.y,
-          lngLat: { lng: e.lngLat.lng, lat: e.lngLat.lat },
+      // The pin element. Long-press (~300 ms) to "grab" it — it lifts off the
+      // map — then drag to reposition; release to drop and re-rule.
+      function createPinElement(): HTMLElement {
+        const el = document.createElement("div");
+        el.style.cssText = "width:26px;height:34px;cursor:grab;touch-action:none";
+        const inner = document.createElement("div");
+        inner.style.cssText =
+          "width:26px;height:34px;transform-origin:50% 100%;transition:transform .12s ease,filter .15s ease;filter:drop-shadow(0 2px 2px rgba(0,0,0,.35))";
+        inner.innerHTML =
+          '<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg">' +
+          '<path d="M13 1C6.4 1 1 6.4 1 13c0 8.8 12 19.5 12 19.5S25 21.8 25 13C25 6.4 19.6 1 13 1z" fill="#1f2937" stroke="#fff" stroke-width="2"/>' +
+          '<circle cx="13" cy="13" r="4.5" fill="#fff"/></svg>';
+        el.appendChild(inner);
+
+        let grabbed = false;
+        let grabTimer: number | undefined;
+        let startX = 0;
+        let startY = 0;
+        let pending: LngLat | null = null;
+        let raf = 0;
+
+        const containerXY = (ev: PointerEvent): [number, number] => {
+          const r = map.getContainer().getBoundingClientRect();
+          return [ev.clientX - r.left, ev.clientY - r.top];
         };
-        window.clearTimeout(pressTimerRef.current);
-        pressTimerRef.current = window.setTimeout(() => {
-          if (pressStart) {
-            setPickedPoint(pressStart.lngLat);
-            pressStart = null;
+        const lift = (on: boolean) => {
+          inner.style.transform = on ? "translateY(-9px) scale(1.12)" : "";
+          inner.style.filter = on
+            ? "drop-shadow(0 10px 7px rgba(0,0,0,.4))"
+            : "drop-shadow(0 2px 2px rgba(0,0,0,.35))";
+          el.style.cursor = on ? "grabbing" : "grab";
+        };
+
+        const onMove = (ev: PointerEvent) => {
+          if (!grabbed) {
+            if (Math.hypot(ev.clientX - startX, ev.clientY - startY) > 12) {
+              window.clearTimeout(grabTimer); // moved before the hold fired
+            }
+            return;
           }
-        }, LONG_PRESS_MS);
-      };
+          const ll = map.unproject(containerXY(ev));
+          pending = { lng: ll.lng, lat: ll.lat };
+          markerRef.current?.setLngLat([ll.lng, ll.lat]); // follow immediately
+          if (!raf) {
+            raf = requestAnimationFrame(() => {
+              raf = 0;
+              if (pending) movePin(pending); // throttle the re-rule to a frame
+            });
+          }
+        };
+        const onUp = (ev: PointerEvent) => {
+          window.clearTimeout(grabTimer);
+          el.removeEventListener("pointermove", onMove);
+          el.removeEventListener("pointerup", onUp);
+          el.removeEventListener("pointercancel", onUp);
+          if (raf) {
+            cancelAnimationFrame(raf);
+            raf = 0;
+          }
+          if (grabbed) {
+            grabbed = false;
+            lift(false);
+            map.dragPan.enable();
+            suppressClickUntil = performance.now() + 400; // swallow the drop's click
+            if (pending) setPickedPoint(pending);
+          }
+          pending = null;
+        };
 
-      const cancelPressOnMove = (e: PressEvent) => {
-        if (!pressStart) return;
-        if (
-          Math.hypot(e.point.x - pressStart.x, e.point.y - pressStart.y) >
-          MOVE_TOLERANCE
-        ) {
-          cancelPress(); // it's a pan, not a hold
-        }
-      };
+        el.addEventListener("pointerdown", (ev: PointerEvent) => {
+          ev.stopPropagation(); // don't pan/place from a press on the pin
+          startX = ev.clientX;
+          startY = ev.clientY;
+          pending = null;
+          el.addEventListener("pointermove", onMove);
+          el.addEventListener("pointerup", onUp);
+          el.addEventListener("pointercancel", onUp);
+          window.clearTimeout(grabTimer);
+          grabTimer = window.setTimeout(() => {
+            grabbed = true;
+            lift(true);
+            map.dragPan.disable();
+            try {
+              el.setPointerCapture(ev.pointerId);
+            } catch {
+              /* capture unsupported */
+            }
+          }, 300);
+        });
 
-      map.on("mousedown", beginPress);
-      map.on("touchstart", beginPress);
-      map.on("mousemove", cancelPressOnMove);
-      map.on("touchmove", cancelPressOnMove);
-      map.on("mouseup", cancelPress);
-      map.on("touchend", cancelPress);
-      map.on("touchcancel", cancelPress);
-      map.on("dragstart", cancelPress);
-      map.on("movestart", cancelPress);
-      map.on("zoomstart", cancelPress);
+        return el;
+      }
+
+      map.on("click", (e) => {
+        if (performance.now() < suppressClickUntil) return;
+        setPickedPoint({ lng: e.lngLat.lng, lat: e.lngLat.lat });
+      });
 
       map.on("click", "reserves-fill", onReserveClick);
       for (const layer of ["reserves-fill"]) {
@@ -796,7 +849,6 @@ export default function MapView({
 
     return () => {
       window.clearTimeout(debounceRef.current);
-      window.clearTimeout(pressTimerRef.current);
       window.clearTimeout(prefetchTimerRef.current);
       if (watchIdRef.current != null && navigator.geolocation) {
         navigator.geolocation.clearWatch(watchIdRef.current);
