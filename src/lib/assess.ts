@@ -308,16 +308,6 @@ export function assessHemfridszon(
   );
 }
 
-export function assessFire(): RuleAssessment {
-  return mk(
-    "fire",
-    "Eldningsförbud",
-    "judgment",
-    "Kontrollera lokalt",
-    "Appen kan inte bekräfta om det råder eldningsförbud här. Kontrollera hos din länsstyrelse innan du eldar.",
-  );
-}
-
 export function assessPosition(
   p: LngLat,
   inputs: AssessInputs,
@@ -332,6 +322,5 @@ export function assessPosition(
       inputs.buildingNoCampM,
       inputs.buildingCautionM,
     ),
-    assessFire(),
   ];
 }

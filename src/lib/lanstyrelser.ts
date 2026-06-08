@@ -45,6 +45,23 @@ export function countyByCode(code: string | null | undefined): County | undefine
   return COUNTIES.find((c) => c.code === code);
 }
 
+function normalizeCounty(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/\s*län\s*$/, "")
+    .trim()
+    .replace(/s$/, ""); // drop the genitive -s ("Stockholms" -> "stockholm")
+}
+
+/** Match an admin name like "Stockholms län" (e.g. from Overpass) to a county. */
+export function countyByName(
+  name: string | null | undefined,
+): County | undefined {
+  if (!name) return undefined;
+  const n = normalizeCounty(name);
+  return COUNTIES.find((c) => normalizeCounty(c.name) === n);
+}
+
 export function countyStartPage(slug: string): string {
   return `https://www.lansstyrelsen.se/${slug}.html`;
 }

@@ -16,6 +16,7 @@ import {
 
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { countyByCode, countyStartPage } from "@/lib/lanstyrelser";
 import type {
   PositionAssessment,
   RuleAssessment,
@@ -40,8 +41,34 @@ const RULE_ICON: Record<RuleId, IconType> = {
   reserve: TreePine,
   cultivated: Wheat,
   hemfridszon: House,
-  fire: Flame,
 };
+
+/**
+ * Fire ban as a footnote — it's decided locally and is explicitly *not* part of
+ * the verdict above; we just point to the county's authoritative source.
+ */
+function FireFootnote({ county }: { county: string | null }) {
+  const c = countyByCode(county);
+  const href = c
+    ? countyStartPage(c.slug)
+    : "https://www.krisinformation.se/forbered-dig/gras--och-skogsbrand/eldningsforbud/";
+  return (
+    <div className="mt-2 flex items-start gap-1.5 border-t pt-2 text-[11px] text-muted-foreground">
+      <Flame className="mt-0.5 size-3 shrink-0" aria-hidden />
+      <span>
+        Eldningsförbud beslutas lokalt och påverkar inte bedömningen ovan –{" "}
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          className="font-medium text-primary hover:underline"
+        >
+          {c ? `kolla Länsstyrelsen ${c.name}` : "kolla eldningsförbud"} ↗
+        </a>
+      </span>
+    </div>
+  );
+}
 
 function Row({ rule }: { rule: RuleAssessment }) {
   const v = VERDICT_META[rule.verdict];
@@ -77,9 +104,11 @@ function Row({ rule }: { rule: RuleAssessment }) {
 /** Body of the "Kan jag tälta här?" sheet (header supplied by the caller). */
 export function PositionAssessmentPanel({
   assessment,
+  county,
   onUseMyLocation,
 }: {
   assessment: PositionAssessment | null;
+  county: string | null;
   onUseMyLocation?: () => void;
 }) {
   const picked = assessment?.located && assessment.origin === "picked";
@@ -127,6 +156,7 @@ export function PositionAssessmentPanel({
               <Row key={rule.id} rule={rule} />
             ))}
           </div>
+          <FireFootnote county={county} />
         </>
       )}
 
@@ -218,10 +248,12 @@ function VerdictHeadline({ assessment }: { assessment: PositionAssessment }) {
  */
 export function AssessmentCard({
   assessment,
+  county,
   onOpenDetails,
   onUseMyLocation,
 }: {
   assessment: PositionAssessment | null;
+  county: string | null;
   onOpenDetails: () => void;
   onUseMyLocation?: () => void;
 }) {
@@ -293,6 +325,7 @@ export function AssessmentCard({
           <CompactRow key={rule.id} rule={rule} />
         ))}
       </div>
+      <FireFootnote county={county} />
     </div>
   );
 }

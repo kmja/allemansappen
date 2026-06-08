@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/sheet";
 import { LayerToggles } from "@/components/panels/LayerToggles";
 import { PrinciplesPanel } from "@/components/panels/PrinciplesPanel";
-import { FireBanBanner } from "@/components/panels/FireBanBanner";
 import {
   AssessmentCard,
   PositionAssessmentPanel,
@@ -35,6 +34,8 @@ import { FirstRunExplainer } from "@/components/panels/FirstRunExplainer";
 import { OVERLAYS } from "@/lib/map/layers";
 import { PROPERTY_LAYER_ENABLED } from "@/lib/config";
 import { APP_VERSION } from "@/lib/version";
+import { getJson } from "@/lib/data/client";
+import { roundCoord } from "@/lib/geo";
 import { useHydrated, useOnline, usePersistentState } from "@/lib/hooks";
 import type {
   DataStatus,
@@ -164,6 +165,26 @@ export function AppShell() {
 
   const online = useOnline();
 
+  // Auto-detect the county (län) for the assessed point, for the fire-ban note.
+  const detPoint = assessment?.point ?? located;
+  const detLat = detPoint ? roundCoord(detPoint.lat, 2) : null;
+  const detLon = detPoint ? roundCoord(detPoint.lng, 2) : null;
+  useEffect(() => {
+    if (detLat == null || detLon == null) return;
+    const ac = new AbortController();
+    getJson<{ county: { code: string; name: string } | null }>(
+      `/api/county?lat=${detLat}&lon=${detLon}`,
+      ac.signal,
+    )
+      .then((res) => {
+        if (res.county?.code) setCounty(res.county.code);
+      })
+      .catch(() => {
+        /* keep last known county (offline / lookup failed) */
+      });
+    return () => ac.abort();
+  }, [detLat, detLon, setCounty]);
+
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-muted">
       <MapView
@@ -220,15 +241,13 @@ export function AppShell() {
             </button>
           </div>
         )}
-        <div className="pointer-events-auto mx-auto w-full max-w-md">
-          <FireBanBanner county={county} onChangeCounty={setCounty} />
-        </div>
       </div>
 
       {/* Bottom: the prominent ruling for the selected/located point */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex flex-col items-center gap-2 p-3">
         <AssessmentCard
           assessment={assessment}
+          county={county}
           onOpenDetails={() => setAssessOpen(true)}
           onUseMyLocation={() => locateRef.current?.()}
         />
@@ -247,6 +266,7 @@ export function AppShell() {
           </SheetHeader>
           <PositionAssessmentPanel
             assessment={assessment}
+            county={county}
             onUseMyLocation={() => {
               locateRef.current?.();
               setAssessOpen(false);

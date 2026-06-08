@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { Feature } from "geojson";
 import {
   assessCultivated,
-  assessFire,
   assessHemfridszon,
   assessPosition,
   assessReserve,
@@ -193,11 +192,8 @@ describe("assessHemfridszon", () => {
   });
 });
 
-describe("assessFire / assessPosition", () => {
-  it("fire is always a judgment call", () => {
-    expect(assessFire().verdict).toBe("judgment");
-  });
-  it("returns the four rules in order", () => {
+describe("assessPosition", () => {
+  it("returns the three land rules in order (fire is a separate footnote)", () => {
     const rules = assessPosition(P, {
       reserves: ready([]),
       cultivated: ready([]),
@@ -210,7 +206,6 @@ describe("assessFire / assessPosition", () => {
       "reserve",
       "cultivated",
       "hemfridszon",
-      "fire",
     ]);
   });
 });

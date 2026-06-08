@@ -90,7 +90,7 @@ export type RuleVerdict =
   | "checking" // data still loading
   | "unknown"; // can't assess: zoomed out, layer off, offline, or off-screen
 
-export type RuleId = "reserve" | "cultivated" | "hemfridszon" | "fire";
+export type RuleId = "reserve" | "cultivated" | "hemfridszon";
 
 export interface RuleAssessment {
   id: RuleId;

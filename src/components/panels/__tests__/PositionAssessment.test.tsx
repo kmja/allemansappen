@@ -35,13 +35,6 @@ const located: PositionAssessment = {
       headline: "~45 m till byggnad",
       detail: "Kan ligga inom hemfridszonen.",
     },
-    {
-      id: "fire",
-      label: "Eldningsförbud",
-      verdict: "judgment",
-      headline: "Kontrollera lokalt",
-      detail: "Appen kan inte bekräfta om det råder eldningsförbud här.",
-    },
   ],
 };
 
@@ -54,27 +47,31 @@ const empty = (): PositionAssessment => ({
 
 describe("PositionAssessmentPanel", () => {
   it("frames green honestly and never as a verdict", () => {
-    render(<PositionAssessmentPanel assessment={located} />);
+    render(<PositionAssessmentPanel assessment={located} county={null} />);
     expect(screen.getByText(/ger ingen dom/i)).toBeInTheDocument();
     expect(screen.getByText(/grönt betyder bara/i)).toBeInTheDocument();
   });
 
-  it("lists every rule with its status headline", () => {
-    render(<PositionAssessmentPanel assessment={located} />);
-    for (const label of [
-      "Naturreservat",
-      "Brukad mark",
-      "Hemfridszon",
-      "Eldningsförbud",
-    ]) {
+  it("lists every land rule with its status headline", () => {
+    render(<PositionAssessmentPanel assessment={located} county={null} />);
+    for (const label of ["Naturreservat", "Brukad mark", "Hemfridszon"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
     expect(screen.getByText("~45 m till byggnad")).toBeInTheDocument();
-    expect(screen.getByText("På brukad mark")).toBeInTheDocument();
+  });
+
+  it("shows the fire ban only as a footnote that doesn't affect the verdict", () => {
+    render(<PositionAssessmentPanel assessment={located} county="M" />);
+    expect(
+      screen.getByText(/påverkar inte bedömningen ovan/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Länsstyrelsen Skåne/i }),
+    ).toBeInTheDocument();
   });
 
   it("prompts to locate or tap when there is no position yet", () => {
-    render(<PositionAssessmentPanel assessment={empty()} />);
+    render(<PositionAssessmentPanel assessment={empty()} county={null} />);
     expect(screen.getByText(/Tryck på platsknappen/i)).toBeInTheDocument();
   });
 
@@ -83,6 +80,7 @@ describe("PositionAssessmentPanel", () => {
     render(
       <PositionAssessmentPanel
         assessment={{ ...located, origin: "picked" }}
+        county={null}
         onUseMyLocation={onUseMyLocation}
       />,
     );
@@ -96,13 +94,24 @@ describe("PositionAssessmentPanel", () => {
 
 describe("AssessmentCard", () => {
   it("invites locating when there is no fix", () => {
-    render(<AssessmentCard assessment={empty()} onOpenDetails={() => {}} />);
+    render(
+      <AssessmentCard
+        assessment={empty()}
+        county={null}
+        onOpenDetails={() => {}}
+      />,
+    );
     expect(screen.getByText(/Tryck på platsknappen/i)).toBeInTheDocument();
   });
 
-  it("shows a prominent verdict and every rule status without opening anything", () => {
-    render(<AssessmentCard assessment={located} onOpenDetails={() => {}} />);
-    // An "avoid" rule is present -> the at-a-glance verdict warns.
+  it("shows a prominent verdict and every land rule without opening anything", () => {
+    render(
+      <AssessmentCard
+        assessment={located}
+        county={null}
+        onOpenDetails={() => {}}
+      />,
+    );
     expect(screen.getByText("Något att undvika här")).toBeInTheDocument();
     expect(screen.getByText("Naturreservat")).toBeInTheDocument();
     expect(screen.getByText("~45 m till byggnad")).toBeInTheDocument();
@@ -117,7 +126,13 @@ describe("AssessmentCard", () => {
           : r,
       ),
     };
-    render(<AssessmentCard assessment={clearish} onOpenDetails={() => {}} />);
+    render(
+      <AssessmentCard
+        assessment={clearish}
+        county={null}
+        onOpenDetails={() => {}}
+      />,
+    );
     expect(screen.getByText(/Inga tydliga hinder/i)).toBeInTheDocument();
   });
 
@@ -130,14 +145,24 @@ describe("AssessmentCard", () => {
         headline: "Kontrollerar…",
       })),
     };
-    render(<AssessmentCard assessment={checking} onOpenDetails={() => {}} />);
+    render(
+      <AssessmentCard
+        assessment={checking}
+        county={null}
+        onOpenDetails={() => {}}
+      />,
+    );
     expect(screen.getByText(/Kontrollerar din plats/i)).toBeInTheDocument();
   });
 
   it("opens the detail sheet via the Detaljer button", async () => {
     const onOpenDetails = vi.fn();
     render(
-      <AssessmentCard assessment={located} onOpenDetails={onOpenDetails} />,
+      <AssessmentCard
+        assessment={located}
+        county={null}
+        onOpenDetails={onOpenDetails}
+      />,
     );
     await userEvent.click(screen.getByRole("button", { name: "Detaljer" }));
     expect(onOpenDetails).toHaveBeenCalledOnce();

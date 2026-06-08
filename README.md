@@ -15,12 +15,12 @@ you make an informed judgment.
 ## What it shows
 
 - **Per-position checklist ("Kan jag tälta här?")** — for your GPS point, or any
-  spot you tap on the map, each consideration (naturreservat, brukad mark,
-  hemfridszon, eldningsförbud) is marked **i grönt / undvik / din bedömning**,
-  with the nearest-building distance shown always-on and live loading states
-  while data fetches. Honest by design: green only ever means "no obstacle found
-  in the loaded data", never a legal verdict; hemfridszon and fire are always
-  flagged as your judgment.
+  spot you tap on the map, each land consideration (naturreservat, brukad mark,
+  hemfridszon) is marked **i grönt / undvik / din bedömning**, with the
+  nearest-building distance shown always-on and live loading states while data
+  fetches. Honest by design: green only ever means "no obstacle found in the
+  loaded data", never a legal verdict; hemfridszon is your judgment, and the fire
+  ban is a separate footnote that doesn't affect the verdict.
 - **Topographic basemap** (OpenStreetMap by default; swappable for Lantmäteriet
   topo or a vector style).
 - **Buildings** — the reasoning aid for *hemfridszon* (the private zone around a
@@ -35,8 +35,10 @@ you make an informed judgment.
   tags when present), a targeted föreskrifter search, and Naturvårdsverket's
   Skyddad natur. We link to the rules rather than restating parsed PDFs.
 - **Property boundaries** (Lantmäteriet) — optional, requires configured access.
-- **Fire ban (eldningsförbud)** — an honest banner that does **not** assert
-  "no ban"; it frames the question and links to your länsstyrelse.
+- **Fire ban (eldningsförbud)** — a small footnote under the ruling (it's decided
+  locally and **does not affect the verdict**). The county (län) is auto-detected
+  for your spot (Overpass `is_in`) and linked to its länsstyrelse; we never assert
+  "no ban".
 - *(Weather isn't shown — it isn't an allemansrätten rule. The SMHI proxy is
   kept dormant for a possible future weather-linked feature.)*
 - **GPS centring**, an always-accessible **allemansrätten principles** panel, and
