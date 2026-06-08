@@ -151,6 +151,7 @@ export default function MapView({
   // Imperative hooks so prop-driven effects can call into the map closure.
   const applyRef = useRef<() => void>(() => {});
   const refreshRef = useRef<() => void>(() => {});
+  const coversRef = useRef<(p: LngLat) => boolean>(() => false);
 
   // ---- init map once -------------------------------------------------------
   useEffect(() => {
@@ -241,15 +242,22 @@ export default function MapView({
       ensureUserDot(coords);
       // Manual mode: keep the live dot, but freeze the assessment on the pin.
       if (pickedRef.current) return;
-      // Centre on the first fix only, and never once the user has panned — so
-      // browsing the map away from your location is never yanked back.
-      if (firstFixRef.current && !userInteractedRef.current) {
+      const first = firstFixRef.current;
+      firstFixRef.current = false;
+      if (first && !userInteractedRef.current) {
+        // Centre on the user once (never after a manual pan), then fetch the
+        // overlays for that view once the move settles.
+        if (!coversRef.current(coords)) {
+          map.once("moveend", () => refreshRef.current());
+        }
         map.easeTo({
           center: [coords.lng, coords.lat],
           zoom: Math.max(map.getZoom(), LOCATED_ZOOM),
         });
+      } else if (!coversRef.current(coords)) {
+        // Walked out of the loaded area — fetch around the new position.
+        refreshRef.current();
       }
-      firstFixRef.current = false;
       propsRef.current.onLocate?.(coords);
       emitAssessment();
     };
@@ -280,6 +288,9 @@ export default function MapView({
       startWatch();
       const coords = locatedRef.current;
       if (coords) {
+        if (!coversRef.current(coords)) {
+          map.once("moveend", () => refreshRef.current());
+        }
         map.easeTo({
           center: [coords.lng, coords.lat],
           zoom: Math.max(map.getZoom(), LOCATED_ZOOM),
@@ -379,6 +390,7 @@ export default function MapView({
       }
       return true;
     };
+    coversRef.current = coversPoint;
 
     const fetchKind = async (kind: OverpassKind, bbox: BBox) => {
       abortRef.current[kind]?.abort();
@@ -693,13 +705,10 @@ export default function MapView({
       refreshOverlays();
 
       map.on("moveend", () => {
+        // Panning never re-rules or refetches — the ruling stays tied to the
+        // assessment point. Overlays are (re)fetched only when that point moves:
+        // on locate, on walking out of coverage, or on a new tap/drag.
         emitView();
-        // Manual mode (a pin is placed) is a frozen snapshot: panning must not
-        // refetch overlays or re-evaluate, so the ruling stays put.
-        if (pickedRef.current) return;
-        emitAssessment();
-        window.clearTimeout(debounceRef.current);
-        debounceRef.current = window.setTimeout(refreshOverlays, 400);
       });
 
       // Single tap places (or moves) the pin; long-press the pin to grab it (it
