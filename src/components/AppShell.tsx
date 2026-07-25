@@ -91,8 +91,8 @@ export function AppShell() {
   );
 
   const [enabled, setEnabled] = usePersistentState<Record<OverlayId, boolean>>(
-    // v2: building-distance zones default on, so reset stored toggle prefs.
-    "fch:overlays:v2",
+    // v3: amenities layer added + on by default, so reset stored toggle prefs.
+    "fch:overlays:v3",
     defaultEnabled,
   );
   const [county, setCounty] = usePersistentState<string | null>(
@@ -109,6 +109,7 @@ export function AppShell() {
     buildings: "idle",
     landuse: "idle",
     reserves: "idle",
+    amenities: "idle",
   });
   const [view, setView] = useState<ViewState | null>(null);
   const [located, setLocated] = useState<LngLat | null>(null);

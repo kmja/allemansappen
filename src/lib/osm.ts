@@ -19,11 +19,12 @@ const LANDUSE_VALUES = [
   "greenhouse_horticulture",
 ].join("|");
 
-/** Per-kind cap on Overpass elements returned (`out geom N`). */
+/** Per-kind cap on Overpass elements returned (`out geom`/`out center`). */
 export const OUT_LIMITS: Record<OverpassKind, number> = {
   buildings: 3000,
   landuse: 2000,
   reserves: 800,
+  amenities: 700,
 };
 
 export function buildOverpassQuery(kind: OverpassKind, bbox: BBox): string {
@@ -35,9 +36,31 @@ export function buildOverpassQuery(kind: OverpassKind, bbox: BBox): string {
       return `[out:json][timeout:25];(way["landuse"~"^(${LANDUSE_VALUES})$"](${bb});relation["landuse"~"^(${LANDUSE_VALUES})$"](${bb}););out geom ${OUT_LIMITS.landuse};`;
     case "reserves":
       return `[out:json][timeout:25];(way["leisure"="nature_reserve"](${bb});relation["leisure"="nature_reserve"](${bb});way["boundary"="protected_area"](${bb});relation["boundary"="protected_area"](${bb}););out geom ${OUT_LIMITS.reserves};`;
+    case "amenities":
+      return `[out:json][timeout:25];(nwr["amenity"~"^(toilets|shelter|drinking_water|bbq)$"](${bb});nwr["leisure"~"^(firepit|fireplace|picnic_table)$"](${bb});nwr["tourism"~"^(wilderness_hut|alpine_hut|camp_site|picnic_site)$"](${bb}););out center ${OUT_LIMITS.amenities};`;
     default:
       throw new Error(`Unknown overpass kind: ${kind satisfies never}`);
   }
+}
+
+/** Normalised amenity category for a POI's tags (for colouring / labelling). */
+export function amenityCategory(tags: Record<string, string>): string {
+  const { amenity, leisure, tourism } = tags;
+  if (amenity === "toilets") return "toilet";
+  if (amenity === "drinking_water") return "water";
+  if (
+    amenity === "shelter" ||
+    tourism === "wilderness_hut" ||
+    tourism === "alpine_hut"
+  ) {
+    return "shelter";
+  }
+  if (leisure === "firepit" || leisure === "fireplace" || amenity === "bbq") {
+    return "fire";
+  }
+  if (leisure === "picnic_table" || tourism === "picnic_site") return "picnic";
+  if (tourism === "camp_site") return "campsite";
+  return "other";
 }
 
 // ---------------------------------------------------------------------------
@@ -61,6 +84,8 @@ export interface OsmElement {
   tags?: Record<string, string>;
   lat?: number;
   lon?: number;
+  /** Center point for way/relation results from `out center` (amenity POIs). */
+  center?: { lat: number; lon: number };
   geometry?: OsmGeomPoint[];
   members?: {
     type: string;
@@ -86,6 +111,15 @@ function featureFromElement(el: OsmElement): Feature | null {
 
   if (el.type === "node" && el.lat != null && el.lon != null) {
     const geometry: Point = { type: "Point", coordinates: [el.lon, el.lat] };
+    return { type: "Feature", geometry, properties };
+  }
+
+  // Amenity POIs arrive via `out center`: a way/relation carrying a `center`.
+  if (el.center) {
+    const geometry: Point = {
+      type: "Point",
+      coordinates: [el.center.lon, el.center.lat],
+    };
     return { type: "Feature", geometry, properties };
   }
 

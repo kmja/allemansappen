@@ -4,7 +4,12 @@ import { fetchOverpass } from "@/lib/server/overpass";
 import { bboxAreaKm2, parseBBox } from "@/lib/geo";
 import type { OverpassKind } from "@/lib/types";
 
-const VALID_KINDS: OverpassKind[] = ["buildings", "landuse", "reserves"];
+const VALID_KINDS: OverpassKind[] = [
+  "buildings",
+  "landuse",
+  "reserves",
+  "amenities",
+];
 const MAX_AREA_KM2 = 250;
 
 export async function GET(req: NextRequest) {

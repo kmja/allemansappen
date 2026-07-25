@@ -12,12 +12,14 @@ const enabled: Record<OverlayId, boolean> = {
   hemfridszon: false,
   landuse: true,
   reserves: true,
+  amenities: true,
   property: false,
 };
 const statuses: Record<OverpassKind, DataStatus> = {
   buildings: "ready",
   landuse: "ready",
   reserves: "ready",
+  amenities: "ready",
 };
 
 describe("LayerToggles", () => {

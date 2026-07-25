@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  amenityCategory,
   buildOverpassQuery,
   osmToGeoJSON,
   type OsmElement,
@@ -28,9 +29,45 @@ describe("buildOverpassQuery", () => {
     expect(q).toContain('leisure"="nature_reserve"');
     expect(q).toContain('boundary"="protected_area"');
   });
+  it("targets amenity POIs and returns their centres", () => {
+    const q = buildOverpassQuery("amenities", bbox);
+    expect(q).toContain("toilets");
+    expect(q).toContain("shelter");
+    expect(q).toContain("firepit");
+    expect(q).toContain("wilderness_hut");
+    expect(q).toContain("out center");
+  });
+});
+
+describe("amenityCategory", () => {
+  it("maps tags to a normalised category", () => {
+    expect(amenityCategory({ amenity: "toilets" })).toBe("toilet");
+    expect(amenityCategory({ amenity: "drinking_water" })).toBe("water");
+    expect(amenityCategory({ amenity: "shelter" })).toBe("shelter");
+    expect(amenityCategory({ tourism: "wilderness_hut" })).toBe("shelter");
+    expect(amenityCategory({ leisure: "firepit" })).toBe("fire");
+    expect(amenityCategory({ amenity: "bbq" })).toBe("fire");
+    expect(amenityCategory({ leisure: "picnic_table" })).toBe("picnic");
+    expect(amenityCategory({ tourism: "camp_site" })).toBe("campsite");
+    expect(amenityCategory({ shop: "supermarket" })).toBe("other");
+  });
 });
 
 describe("osmToGeoJSON", () => {
+  it("converts a way/relation `center` (out center) into a Point", () => {
+    const els: OsmElement[] = [
+      {
+        type: "way",
+        id: 9,
+        center: { lat: 59.31, lon: 18.02 },
+        tags: { amenity: "toilets" },
+      },
+    ];
+    const [f] = osmToGeoJSON(els);
+    expect((f.geometry as Point).type).toBe("Point");
+    expect((f.geometry as Point).coordinates).toEqual([18.02, 59.31]);
+  });
+
   it("converts a node into a Point with tags + osm_id", () => {
     const els: OsmElement[] = [
       { type: "node", id: 1, lat: 59.3, lon: 18.0, tags: { name: "X" } },

@@ -14,10 +14,11 @@ export type OverlayId =
   | "buildings"
   | "hemfridszon"
   | "landuse"
-  | "reserves";
+  | "reserves"
+  | "amenities";
 
 /** The kinds of OpenStreetMap data we fetch from Overpass. */
-export type OverpassKind = "buildings" | "landuse" | "reserves";
+export type OverpassKind = "buildings" | "landuse" | "reserves" | "amenities";
 
 /** Lifecycle status for any async data layer/banner. */
 export type DataStatus =

@@ -4,7 +4,7 @@ import { CheckCircle2, CircleAlert, CircleDashed, Loader2 } from "lucide-react";
 
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
-import { OVERLAYS, type OverlayConfig } from "@/lib/map/layers";
+import { AMENITY_META, OVERLAYS, type OverlayConfig } from "@/lib/map/layers";
 import type { DataStatus, OverlayId, OverpassKind } from "@/lib/types";
 
 function hintFor(
@@ -125,6 +125,25 @@ export function LayerToggles({
                   <p className="mt-0.5 text-[11px] text-muted-foreground/80">
                     {hint}
                   </p>
+                )}
+                {overlay.id === "amenities" && (
+                  <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+                    {Object.entries(AMENITY_META)
+                      .filter(([k]) => k !== "other")
+                      .map(([k, m]) => (
+                        <span
+                          key={k}
+                          className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
+                        >
+                          <span
+                            className="size-2 rounded-full"
+                            style={{ backgroundColor: m.color }}
+                            aria-hidden
+                          />
+                          {m.label}
+                        </span>
+                      ))}
+                  </div>
                 )}
               </div>
             </div>

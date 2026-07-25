@@ -49,7 +49,12 @@ export function DebugPanel({
 }) {
   if (!open) return null;
 
-  const overlayKinds: OverpassKind[] = ["buildings", "landuse", "reserves"];
+  const overlayKinds: OverpassKind[] = [
+    "buildings",
+    "landuse",
+    "reserves",
+    "amenities",
+  ];
 
   return (
     <div className="pointer-events-auto absolute left-3 top-3 z-30 max-h-[80dvh] w-[min(92vw,340px)] overflow-y-auto rounded-lg bg-card/95 p-3 font-mono text-[11px] leading-relaxed shadow-lg ring-1 ring-border backdrop-blur">

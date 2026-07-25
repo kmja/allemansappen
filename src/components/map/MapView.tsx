@@ -14,7 +14,12 @@ import type { FeatureCollection } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { getBasemap } from "@/lib/map/basemap";
-import { CAUTION_COLOR, NOCAMP_COLOR, OVERLAY_COLORS } from "@/lib/map/layers";
+import {
+  AMENITY_META,
+  CAUTION_COLOR,
+  NOCAMP_COLOR,
+  OVERLAY_COLORS,
+} from "@/lib/map/layers";
 import { getJson } from "@/lib/data/client";
 import { safeHttpUrl } from "@/lib/url";
 import { assessPosition } from "@/lib/assess";
@@ -56,7 +61,12 @@ interface MapViewProps {
   onAssessment?: (assessment: PositionAssessment) => void;
 }
 
-const ALL_KINDS: OverpassKind[] = ["buildings", "landuse", "reserves"];
+const ALL_KINDS: OverpassKind[] = [
+  "buildings",
+  "landuse",
+  "reserves",
+  "amenities",
+];
 const EMPTY_FC: FeatureCollection = { type: "FeatureCollection", features: [] };
 
 function geolocationErrorMessage(code?: number): string {
@@ -121,16 +131,19 @@ export default function MapView({
     buildings: null,
     landuse: null,
     reserves: null,
+    amenities: null,
   });
   const abortRef = useRef<Record<OverpassKind, AbortController | null>>({
     buildings: null,
     landuse: null,
     reserves: null,
+    amenities: null,
   });
   const statusRef = useRef<Record<OverpassKind, DataStatus>>({
     buildings: "idle",
     landuse: "idle",
     reserves: "idle",
+    amenities: "idle",
   });
   const debounceRef = useRef<number | undefined>(undefined);
   const locatedRef = useRef<LngLat | null>(null);
@@ -144,6 +157,7 @@ export default function MapView({
     buildings: null,
     landuse: null,
     reserves: null,
+    amenities: null,
   });
   const prefetchTimerRef = useRef<number | undefined>(undefined);
   const fetchMsRef = useRef<number | null>(null);
@@ -370,6 +384,7 @@ export default function MapView({
       if (e.buildings || e.hemfridszon) kinds.push("buildings");
       if (e.landuse) kinds.push("landuse");
       if (e.reserves) kinds.push("reserves");
+      if (e.amenities) kinds.push("amenities");
       return kinds;
     };
 
@@ -521,6 +536,7 @@ export default function MapView({
       vis("landuse-line", e.landuse);
       vis("reserves-fill", e.reserves);
       vis("reserves-line", e.reserves);
+      vis("amenities-circle", e.amenities);
     };
 
     const applyPropertyLayer = () => {
@@ -563,6 +579,7 @@ export default function MapView({
         "src-reserves",
         "src-zone-outer",
         "src-zone-inner",
+        "src-amenities",
       ]) {
         if (!map.getSource(id)) {
           map.addSource(id, { type: "geojson", data: EMPTY_FC });
@@ -639,6 +656,35 @@ export default function MapView({
         source: "src-buildings",
         paint: { "line-color": OVERLAY_COLORS.buildings, "line-width": 1 },
       });
+
+      // Amenity POIs on top, colour-coded by category (see AMENITY_META).
+      map.addLayer({
+        id: "amenities-circle",
+        type: "circle",
+        source: "src-amenities",
+        paint: {
+          "circle-radius": 5,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#ffffff",
+          "circle-color": [
+            "match",
+            ["get", "amc"],
+            "toilet",
+            AMENITY_META.toilet.color,
+            "water",
+            AMENITY_META.water.color,
+            "shelter",
+            AMENITY_META.shelter.color,
+            "fire",
+            AMENITY_META.fire.color,
+            "picnic",
+            AMENITY_META.picnic.color,
+            "campsite",
+            AMENITY_META.campsite.color,
+            AMENITY_META.other.color,
+          ],
+        },
+      });
     };
 
     const onReserveClick = (e: {
@@ -692,6 +738,25 @@ export default function MapView({
         links.join("") +
         `</div>`;
       new Popup({ closeButton: true, maxWidth: "280px" })
+        .setLngLat(e.lngLat)
+        .setHTML(html)
+        .addTo(map);
+    };
+
+    const onAmenityClick = (e: {
+      lngLat: { lng: number; lat: number };
+      features?: { properties?: Record<string, unknown> | null }[];
+    }) => {
+      const props = e.features?.[0]?.properties ?? {};
+      const amc = typeof props.amc === "string" ? props.amc : "other";
+      const meta = AMENITY_META[amc] ?? AMENITY_META.other;
+      const name = typeof props.name === "string" ? props.name : "";
+      const html =
+        `<div style="font-size:13px;line-height:1.4">` +
+        `<div style="font-weight:600">${meta.emoji} ${meta.label}</div>` +
+        (name ? `<div style="opacity:.75">${escapeHtml(name)}</div>` : "") +
+        `</div>`;
+      new Popup({ closeButton: true, maxWidth: "220px" })
         .setLngLat(e.lngLat)
         .setHTML(html)
         .addTo(map);
@@ -839,11 +904,19 @@ export default function MapView({
 
       map.on("click", (e) => {
         if (performance.now() < suppressClickUntil) return;
+        // A tap on an amenity dot shows its info instead of moving the pin.
+        if (
+          map.queryRenderedFeatures(e.point, { layers: ["amenities-circle"] })
+            .length
+        ) {
+          return;
+        }
         setPickedPoint({ lng: e.lngLat.lng, lat: e.lngLat.lat });
       });
 
       map.on("click", "reserves-fill", onReserveClick);
-      for (const layer of ["reserves-fill"]) {
+      map.on("click", "amenities-circle", onAmenityClick);
+      for (const layer of ["reserves-fill", "amenities-circle"]) {
         map.on("mouseenter", layer, () => {
           map.getCanvas().style.cursor = "pointer";
         });

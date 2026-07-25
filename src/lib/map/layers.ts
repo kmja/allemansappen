@@ -11,6 +11,21 @@ export const OVERLAY_COLORS: Record<OverlayId, string> = {
   hemfridszon: NOCAMP_COLOR, // red (no-camp zone)
   landuse: "#ca8a04", // ochre (caution)
   reserves: "#15803d", // forest green
+  amenities: "#0d9488", // teal
+};
+
+/** Per-category styling for amenity POIs (map colour + popup emoji/label). */
+export const AMENITY_META: Record<
+  string,
+  { color: string; emoji: string; label: string }
+> = {
+  toilet: { color: "#2563eb", emoji: "🚻", label: "Toalett" },
+  water: { color: "#0891b2", emoji: "🚰", label: "Dricksvatten" },
+  shelter: { color: "#16a34a", emoji: "⛺", label: "Vindskydd / stuga" },
+  fire: { color: "#ea580c", emoji: "🔥", label: "Eldplats / grill" },
+  picnic: { color: "#a16207", emoji: "🪑", label: "Rastplats" },
+  campsite: { color: "#7c3aed", emoji: "🏕️", label: "Tältplats" },
+  other: { color: "#6b7280", emoji: "📍", label: "Plats" },
 };
 
 export interface OverlayConfig {
@@ -71,6 +86,17 @@ export const OVERLAYS: OverlayConfig[] = [
     overpassKind: "reserves",
     needsZoom: true,
     color: OVERLAY_COLORS.reserves,
+  },
+  {
+    id: "amenities",
+    label: "Bekvämligheter",
+    description:
+      "Toaletter, vindskydd, eldplatser, dricksvatten och rastplatser (färgade prickar). Tryck på en prick för info.",
+    defaultEnabled: true,
+    source: "overpass",
+    overpassKind: "amenities",
+    needsZoom: true,
+    color: OVERLAY_COLORS.amenities,
   },
   {
     id: "property",

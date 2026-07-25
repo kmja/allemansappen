@@ -34,6 +34,10 @@ you make an informed judgment.
   **föreskrifter** (the legal local rules): official site / Wikipedia (from OSM
   tags when present), a targeted föreskrifter search, and Naturvårdsverket's
   Skyddad natur. We link to the rules rather than restating parsed PDFs.
+- **Amenities (Bekvämligheter)** — helpful outdoor POIs from OSM as colour-coded
+  dots: toilets, wind shelters / huts (vindskydd), fire pits / BBQ, drinking
+  water, picnic/rest spots and camp sites. Tap a dot for its type. These are
+  facilities, **not** rules — they don't affect the ruling.
 - **Property boundaries** (Lantmäteriet) — optional, requires configured access.
 - **Fire ban (eldningsförbud)** — a small footnote under the ruling (it's decided
   locally and **does not affect the verdict**). The county (län) is auto-detected

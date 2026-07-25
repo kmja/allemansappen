@@ -1,7 +1,12 @@
 import "server-only";
 
 import type { BBox, OverpassKind, OverpassResponse } from "../types";
-import { buildOverpassQuery, osmToGeoJSON, type OsmElement } from "../osm";
+import {
+  amenityCategory,
+  buildOverpassQuery,
+  osmToGeoJSON,
+  type OsmElement,
+} from "../osm";
 
 const OVERPASS_URL =
   process.env.OVERPASS_URL?.trim() || "https://overpass-api.de/api/interpreter";
@@ -32,6 +37,14 @@ export async function fetchOverpass(
 
   const json = (await res.json()) as { elements?: OsmElement[] };
   const features = osmToGeoJSON(json.elements ?? []);
+  if (kind === "amenities") {
+    for (const f of features) {
+      f.properties = {
+        ...(f.properties ?? {}),
+        amc: amenityCategory((f.properties ?? {}) as Record<string, string>),
+      };
+    }
+  }
 
   return {
     type: "FeatureCollection",
