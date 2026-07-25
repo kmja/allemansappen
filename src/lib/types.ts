@@ -103,6 +103,13 @@ export interface RuleAssessment {
   detail: string;
 }
 
+/** Nearest amenity of a category to the assessed point (helpful, not a rule). */
+export interface NearbyAmenity {
+  amc: string;
+  distanceM: number;
+  name?: string;
+}
+
 export interface PositionAssessment {
   /** Whether we have a point to assess at all (a GPS fix or a tapped point). */
   located: boolean;
@@ -110,6 +117,8 @@ export interface PositionAssessment {
   origin: "gps" | "picked";
   /** The assessed point itself (for debugging/inspection). */
   point?: LngLat;
+  /** Nearest amenities by category (closest first), for a helpful readout. */
+  nearby?: NearbyAmenity[];
   /** Whether the assessed point is within the loaded map view (else data is stale). */
   positionInView: boolean;
   rules: RuleAssessment[];

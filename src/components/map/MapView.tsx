@@ -22,7 +22,7 @@ import {
 } from "@/lib/map/layers";
 import { getJson } from "@/lib/data/client";
 import { safeHttpUrl } from "@/lib/url";
-import { assessPosition } from "@/lib/assess";
+import { assessPosition, haversineMeters } from "@/lib/assess";
 import { OUT_LIMITS } from "@/lib/osm";
 import {
   BUILDING_CAUTION_M,
@@ -218,11 +218,35 @@ export default function MapView({
           covers: inBBox(resp?.meta.bbox),
         };
       };
+      // Nearest amenity per category — a helpful readout, not part of the rules.
+      const bestByCat: Record<string, { distanceM: number; name?: string }> = {};
+      for (const f of dataRef.current.amenities?.features ?? []) {
+        const g = f.geometry;
+        if (!g || g.type !== "Point") continue;
+        const [lon, lat] = g.coordinates as [number, number];
+        const d = haversineMeters(point, { lng: lon, lat });
+        const amc =
+          typeof f.properties?.amc === "string" ? f.properties.amc : "other";
+        if (!bestByCat[amc] || d < bestByCat[amc].distanceM) {
+          bestByCat[amc] = {
+            distanceM: d,
+            name:
+              typeof f.properties?.name === "string"
+                ? f.properties.name
+                : undefined,
+          };
+        }
+      }
+      const nearby = Object.entries(bestByCat)
+        .map(([amc, v]) => ({ amc, distanceM: v.distanceM, name: v.name }))
+        .sort((a, b) => a.distanceM - b.distanceM)
+        .slice(0, 5);
       cb({
         located: true,
         origin,
         point,
         positionInView,
+        nearby,
         rules: assessPosition(point, {
           reserves: layer("reserves"),
           cultivated: layer("landuse"),

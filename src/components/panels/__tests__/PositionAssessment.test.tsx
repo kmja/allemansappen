@@ -117,6 +117,25 @@ describe("AssessmentCard", () => {
     expect(screen.getByText("~45 m till byggnad")).toBeInTheDocument();
   });
 
+  it("surfaces the nearest amenities as a helpful, non-verdict readout", () => {
+    render(
+      <AssessmentCard
+        assessment={{
+          ...located,
+          nearby: [
+            { amc: "toilet", distanceM: 120 },
+            { amc: "shelter", distanceM: 410, name: "Vindskydd" },
+          ],
+        }}
+        county={null}
+        onOpenDetails={() => {}}
+      />,
+    );
+    expect(screen.getByText("Närmaste:")).toBeInTheDocument();
+    expect(screen.getByText("120 m")).toBeInTheDocument();
+    expect(screen.getByText("410 m")).toBeInTheDocument();
+  });
+
   it("reads as your-judgment when nothing must be avoided", () => {
     const clearish: PositionAssessment = {
       ...located,

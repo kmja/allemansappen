@@ -16,8 +16,10 @@ import {
 
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+import { AMENITY_META } from "@/lib/map/layers";
 import { countyByCode, countyStartPage } from "@/lib/lanstyrelser";
 import type {
+  NearbyAmenity,
   PositionAssessment,
   RuleAssessment,
   RuleId,
@@ -42,6 +44,68 @@ const RULE_ICON: Record<RuleId, IconType> = {
   cultivated: Wheat,
   hemfridszon: House,
 };
+
+function fmtDist(m: number): string {
+  return m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`;
+}
+
+/** Nearest amenities to the point — helpful facilities, not part of the verdict. */
+function NearbyAmenities({
+  nearby,
+  detailed = false,
+}: {
+  nearby?: NearbyAmenity[];
+  detailed?: boolean;
+}) {
+  if (!nearby || nearby.length === 0) return null;
+  if (detailed) {
+    return (
+      <div className="mt-2 border-t pt-2">
+        <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+          Närmaste bekvämligheter
+        </div>
+        <div className="grid gap-1">
+          {nearby.map((a) => {
+            const m = AMENITY_META[a.amc] ?? AMENITY_META.other;
+            return (
+              <div
+                key={a.amc}
+                className="flex items-center justify-between gap-2 text-xs"
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  <span aria-hidden>{m.emoji}</span>
+                  {m.label}
+                  {a.name ? ` – ${a.name}` : ""}
+                </span>
+                <span className="font-medium tabular-nums text-muted-foreground">
+                  {fmtDist(a.distanceM)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-2 text-[11px] text-muted-foreground">
+      <span className="font-medium">Närmaste:</span>
+      {nearby.map((a) => {
+        const m = AMENITY_META[a.amc] ?? AMENITY_META.other;
+        return (
+          <span
+            key={a.amc}
+            className="inline-flex items-center gap-1"
+            title={m.label}
+          >
+            <span aria-hidden>{m.emoji}</span>
+            {fmtDist(a.distanceM)}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 /**
  * Fire ban as a footnote — it's decided locally and is explicitly *not* part of
@@ -156,6 +220,7 @@ export function PositionAssessmentPanel({
               <Row key={rule.id} rule={rule} />
             ))}
           </div>
+          <NearbyAmenities nearby={assessment.nearby} detailed />
           <FireFootnote county={county} />
         </>
       )}
@@ -325,6 +390,7 @@ export function AssessmentCard({
           <CompactRow key={rule.id} rule={rule} />
         ))}
       </div>
+      <NearbyAmenities nearby={assessment.nearby} />
       <FireFootnote county={county} />
     </div>
   );
