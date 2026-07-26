@@ -57,7 +57,7 @@ export function DebugPanel({
   ];
 
   return (
-    <div className="pointer-events-auto absolute left-3 top-3 z-30 max-h-[80dvh] w-[min(92vw,340px)] overflow-y-auto rounded-lg bg-card/95 p-3 font-mono text-[11px] leading-relaxed shadow-lg ring-1 ring-border backdrop-blur">
+    <div className="pointer-events-auto absolute left-3 top-3 z-30 max-h-[80dvh] w-[min(92vw,340px)] overflow-y-auto rounded-lg bg-card/95 p-3 font-mono text-xs leading-relaxed shadow-lg ring-1 ring-border backdrop-blur">
       <div className="mb-2 flex items-center justify-between">
         <span className="text-sm font-semibold">Debug</span>
         <button type="button" onClick={onClose} aria-label="Stäng debug">

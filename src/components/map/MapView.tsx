@@ -756,7 +756,7 @@ export default function MapView({
       );
 
       const html =
-        `<div style="font-size:13px;line-height:1.45;max-width:240px">` +
+        `<div style="font-size:15px;line-height:1.45;max-width:240px">` +
         `<div style="font-weight:600;margin-bottom:2px">${escapeHtml(name)}</div>` +
         `<div style="opacity:.75;margin-bottom:4px">Skyddat område med egna <b>föreskrifter</b> – ofta begränsas eldning och tältning. Läs reglerna innan du tältar:</div>` +
         links.join("") +
@@ -776,7 +776,7 @@ export default function MapView({
       const meta = AMENITY_META[amc] ?? AMENITY_META.other;
       const name = typeof props.name === "string" ? props.name : "";
       const html =
-        `<div style="font-size:13px;line-height:1.4">` +
+        `<div style="font-size:15px;line-height:1.4">` +
         `<div style="font-weight:600">${meta.emoji} ${meta.label}</div>` +
         (name ? `<div style="opacity:.75">${escapeHtml(name)}</div>` : "") +
         `</div>`;

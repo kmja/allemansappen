@@ -61,7 +61,7 @@ function NearbyAmenities({
   if (detailed) {
     return (
       <div className="mt-2 border-t pt-2">
-        <div className="mb-1 text-[11px] font-medium text-muted-foreground">
+        <div className="mb-1 text-xs font-medium text-muted-foreground">
           Närmaste bekvämligheter
         </div>
         <div className="grid gap-1">
@@ -88,7 +88,7 @@ function NearbyAmenities({
     );
   }
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-2 text-[11px] text-muted-foreground">
+    <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 border-t pt-2 text-xs text-muted-foreground">
       <span className="font-medium">Närmaste:</span>
       {nearby.map((a) => {
         const m = AMENITY_META[a.amc] ?? AMENITY_META.other;
@@ -117,7 +117,7 @@ function FireFootnote({ county }: { county: string | null }) {
     ? countyStartPage(c.slug)
     : "https://www.krisinformation.se/forbered-dig/gras--och-skogsbrand/eldningsforbud/";
   return (
-    <div className="mt-2 flex items-start gap-1.5 border-t pt-2 text-[11px] text-muted-foreground">
+    <div className="mt-2 flex items-start gap-1.5 border-t pt-2 text-xs text-muted-foreground">
       <Flame className="mt-0.5 size-3 shrink-0" aria-hidden />
       <span>
         Eldningsförbud beslutas lokalt och påverkar inte bedömningen ovan –{" "}
@@ -226,7 +226,7 @@ export function PositionAssessmentPanel({
       )}
 
       <Separator className="my-3" />
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-xs leading-relaxed text-muted-foreground">
         Tidskänsligt (väder, eldningsförbud) kan ändras snabbt. Vid minsta
         tvekan: fråga markägaren eller välj en annan plats.
       </p>
@@ -250,17 +250,17 @@ function CompactRow({ rule }: { rule: RuleAssessment }) {
   const v = VERDICT_META[rule.verdict];
   const RuleIcon = RULE_ICON[rule.id];
   return (
-    <div className="flex items-center gap-2">
-      <RuleIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-      <span className="flex-1 truncate text-xs font-medium">{rule.label}</span>
+    <div className="flex items-center gap-2.5">
+      <RuleIcon className="size-5 shrink-0 text-muted-foreground" aria-hidden />
+      <span className="flex-1 truncate text-sm font-medium">{rule.label}</span>
       <span
         className={cn(
-          "inline-flex shrink-0 items-center gap-1 text-xs font-medium",
+          "inline-flex shrink-0 items-center gap-1 text-sm font-medium",
           v.cls,
         )}
       >
         <v.Icon
-          className={cn("size-3.5", v.spin && "animate-spin")}
+          className={cn("size-4", v.spin && "animate-spin")}
           aria-hidden
         />
         {rule.headline}
@@ -296,9 +296,9 @@ function VerdictHeadline({ assessment }: { assessment: PositionAssessment }) {
     text = "Något att undvika här";
   }
   return (
-    <div className={cn("flex items-center gap-2 text-sm font-semibold", cls)}>
+    <div className={cn("flex items-center gap-2 text-base font-semibold", cls)}>
       <Icon
-        className={cn("size-4 shrink-0", spin && "animate-spin")}
+        className={cn("size-5 shrink-0", spin && "animate-spin")}
         aria-hidden
       />
       {text}
@@ -358,13 +358,13 @@ export function AssessmentCard({
         <button
           type="button"
           onClick={onOpenDetails}
-          className="shrink-0 text-xs font-medium text-primary hover:underline"
+          className="shrink-0 text-sm font-medium text-primary hover:underline"
         >
           Detaljer
         </button>
       </div>
 
-      <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+      <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
         {picked ? (
           <MapPin className="size-3 shrink-0" aria-hidden />
         ) : (

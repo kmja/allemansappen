@@ -72,7 +72,7 @@ function ControlButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="pointer-events-auto size-10 rounded-full shadow-md ring-1 ring-border backdrop-blur supports-[backdrop-filter]:bg-secondary/85"
+      className="pointer-events-auto size-12 rounded-full shadow-md ring-1 ring-border backdrop-blur supports-[backdrop-filter]:bg-secondary/85"
     >
       {children}
     </Button>
@@ -203,19 +203,19 @@ export function AppShell() {
       <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-col gap-2 p-3">
         <div className="flex justify-end gap-2">
           <ControlButton label="Min plats" onClick={() => locateRef.current?.()}>
-            <LocateFixed className="size-5" />
+            <LocateFixed className="size-6" />
           </ControlButton>
           <ControlButton label="Lager" onClick={() => setLayersOpen(true)}>
-            <Layers className="size-5" />
+            <Layers className="size-6" />
           </ControlButton>
           <ControlButton
             label="Allemansrätten"
             onClick={() => setPrinciplesOpen(true)}
           >
-            <BookOpen className="size-5" />
+            <BookOpen className="size-6" />
           </ControlButton>
           <ControlButton label="Om appen" onClick={() => setIntroOpen(true)}>
-            <Info className="size-5" />
+            <Info className="size-6" />
           </ControlButton>
         </div>
         {!online && (
@@ -317,7 +317,7 @@ export function AppShell() {
         type="button"
         onClick={() => setDebugOpen(true)}
         aria-label="Visa debug"
-        className="pointer-events-auto absolute bottom-1 left-1.5 z-20 font-mono text-[10px] text-muted-foreground/60 transition-colors hover:text-muted-foreground"
+        className="pointer-events-auto absolute bottom-1 left-1.5 z-20 font-mono text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
       >
         v{APP_VERSION}
       </button>

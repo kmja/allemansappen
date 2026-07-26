@@ -122,7 +122,7 @@ export function LayerToggles({
                   {overlay.description}
                 </p>
                 {hint && (
-                  <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+                  <p className="mt-0.5 text-xs text-muted-foreground/80">
                     {hint}
                   </p>
                 )}
@@ -133,7 +133,7 @@ export function LayerToggles({
                       .map(([k, m]) => (
                         <span
                           key={k}
-                          className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground"
                         >
                           <span
                             className="size-2 rounded-full"
@@ -151,7 +151,7 @@ export function LayerToggles({
         })}
       </div>
       <Separator className="my-3" />
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-xs leading-relaxed text-muted-foreground">
         Byggnadslagret hjälper dig att hålla avstånd till bostäder
         (hemfridszon). Brukad mark visar åkrar och ängar att undvika.
       </p>

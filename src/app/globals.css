@@ -118,6 +118,10 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    /* Bump the base size so the whole rem-based UI reads larger. */
+    font-size: 118.75%;
+  }
   html,
   body {
     height: 100%;
@@ -129,7 +133,7 @@
 
 /* MapLibre tweaks so controls sit nicely against our UI */
 .maplibregl-ctrl-attrib {
-  font-size: 10px;
+  font-size: 12px;
 }
 .maplibregl-popup-content {
   border-radius: var(--radius);
